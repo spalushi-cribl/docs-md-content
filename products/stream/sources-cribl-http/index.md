@@ -1,0 +1,227 @@
+# Cribl HTTP Source
+
+
+The Cribl HTTP Source receives data from a [Cribl HTTP Destination](destinations-cribl-http). Relaying data between a Cribl HTTP Destination and Cribl HTTP Source pair prevents double-billing: You won't incur any additional charges or credit usage after initial ingest to the first Worker Group (depending
+on your Leader setup – see [Transfer Data Between Workspaces or Environments](usecase-transfer-data) for more
+details).
+
+It’s common to send data from Cribl Edge to a Cribl Stream Worker Group using this kind of pairing.
+
+> Type: **Internal**  |  TLS Support: **YES** | Event Breaker Support: **No**
+>
+>For guidance on when to choose this Source versus the [Cribl TCP](sources-cribl-tcp) Source, see [Interoperation Protocols](/reference-architectures/ref-arch-protocols).
+{.box .info}
+
+Within Cribl Stream, the Cribl HTTP Source is available only in [Distributed deployments](/stream/deploy-distributed). In [single‑instance mode](/stream/deploy-single-instance), or for testing, you can use the [Raw HTTP/S](sources-raw-http) Source instead. However, this substitution will not facilitate sending [all internal fields](#internal-fields), as described below.
+
+## How It Works
+
+You can use the Cribl HTTP Source to transfer data between Worker Nodes and Workers. If the Cribl HTTP Source receives data from its [Cribl HTTP Destination](destinations-cribl-http) counterpart on another Worker, you're billed for ingress only once – when Cribl first receives the data.
+
+Using a Cribl HTTP Destination/Source pair, you're not charged for subsequent data sent to:
+
+- Workers that share a Leader.
+- Workers that don't share a Leader, but are configured in Cribl.Cloud
+  Workspaces within the same Organization.
+- Workers that do not share a Leader, but that do have the exact same on-prem license
+  installed.
+
+This use case is common in hybrid Cribl.Cloud deployments, where a customer-managed (hybrid) Worker Node sends data to a Worker in Cribl.Cloud for additional processing and routing to Destinations. However, the Cribl HTTP Destination/Source pair can similarly reduce your metered data ingress in other scenarios, such as on-prem Edge to on-prem Stream.
+
+As one usage example, assume that you want to send data from one Node deployed on-prem, to another that is deployed in [Cribl.Cloud](deploy-cloud). You could do the following:
+
+- Create an on-prem File System Collector (or whatever Collector or Source is suitable) for the data you want to send to Cribl.Cloud.
+- Create an on-prem Cribl HTTP Destination.
+- Create a Cribl HTTP Source, on the target Stream Worker Group or Edge Fleet in Cribl.Cloud.
+- For an on-prem Node configure a File System Collector to send data to the Cribl HTTP Destination, and from there to the Cribl HTTP Source in Cribl.Cloud.
+- On Cribl-managed Nodes in Cribl.Cloud, make sure that TLS is either disabled on both the Cribl HTTP Destination and the Cribl HTTP Source it's sending data to, or enabled on both. Otherwise, no data will flow. On Cribl.Cloud instances, the Cribl HTTP Source ships with TLS enabled by default.
+
+## Configuration Requirements {#reqs}
+
+The key points about configuring this architecture are:
+
+- The Destination's **Cribl endpoint** field must point to the **Address** and **Port** you've configured on its peer Cribl HTTP Source(s).
+- Cribl 3.5.4 was a breakpoint in Cribl HTTP Leader/Worker communications. Nodes running the Cribl HTTP Source on Cribl 3.5.4 and newer can send data only to Nodes running v.3.5.4 and newer. Nodes running the Cribl HTTP Source on Cribl 3.5.3 and older can send data only to Nodes running v.3.5.3 and older.
+
+## Configure the Cribl HTTP Source
+
+1. On the top bar, select **Products**, and then select **Cribl Stream**. Under **Worker Groups**, select a Worker Group. Next, you have two options:
+     - To configure via [QuickConnect](quickconnect), navigate to **Routing** > **QuickConnect** (Stream) or **Collect** (Edge). Select **Add Source** and select the Source you want from the list, choosing either **Select Existing** or **Add New**.
+     - To configure via the [Routes](routes), select **Data** > **Sources** (Stream) or **More** > **Sources** (Edge). Select the Source you want. Next, select **Add Source**.
+2. In the **New Source** modal, configure the following under **General Settings**:
+   - **Enabled**: Toggle on to enable the Source.
+   - **Input ID**: Enter a unique name to identify this Cribl HTTP Source definition. If you clone this Source, Cribl Stream will add `-CLONE` to the original **Input ID**.
+   - **Description**: Optionally, enter a description.
+   - **Address**: Enter the address to bind on. Defaults to `0.0.0.0` (all addresses).
+   - **Port**: Enter the port number to listen on, for example, `10200`.
+3. Next, you can configure the following **Optional Settings**:
+    - **Tags**: Optionally, add tags that you can use for filtering and grouping in the Cribl Stream UI. Use a tab or hard return between (arbitrary) tag names. These tags aren't added to processed events.
+4. Optionally, configure any [TLS settings](#tls), [Persistent Queue](#pq), [Processing](#processing), [Advanced](#advanced) settings and [Connected Destinations](#connected) outlined in the sections below.
+5. Select **Save**, then **Commit & Deploy**.
+
+
+### TLS Settings (Server Side) {#tls}
+
+**Enabled** Default is toggled off. When toggled on, exposes this section's remaining fields.
+
+**Certificate name**: Select a predefined certificate from the drop-down. A **Create** button is available to create a new certificate.
+
+**Private key path**: Server path containing the private key (in PEM format) to use. Path can reference `$ENV_VARS`.
+
+**Passphrase**: Passphrase to use to decrypt private key.
+
+**Certificate path**: Server path containing certificates (in PEM format) to use. Path can reference `$ENV_VARS`.
+
+**CA certificate path**: Server path containing CA certificates (in PEM format) to use. Path can reference `$ENV_VARS`.
+
+**Authenticate client (mutual auth)**: Require clients to present their certificates. Used to perform mutual authentication using SSL certs. Default is toggled off. When toggled on, exposes these two additional fields:
+- **Validate client certificates**: Reject certificates that are not authorized by a CA in the **CA certificate path**, or by another trusted CA (for example, the system's CA). Default is toggled off.
+- **Common name**: Regex matching subject common names in peer certificates allowed to connect. Defaults to `.*`. Matches on the substring after `CN=`. As needed, escape regex tokens to match literal characters. For example, to match the subject `CN=worker.cribl.local`, you would enter: `worker\.cribl\.local`.
+
+**Minimum TLS version**: Optionally, select the minimum TLS version to accept from connections.
+
+**Maximum TLS version**: Optionally, select the maximum TLS version to accept from connections.
+
+### Persistent Queue Settings {#pq}
+
+**Enable Persistent Queue**: Defaults to toggled off. When toggled on:
+
+**Mode**: Choose a mode from the drop-down:
+* With `Smart` mode, PQ will write events to the filesystem only when it detects backpressure from the processing engine.
+* With `Always On` mode, PQ will always write events directly to the queue before forwarding them to the processing engine.
+
+**Buffer size limit**: Maximum number of events to hold in-memory before dumping them to disk.
+
+**Commit frequency**: Number of events to send before committing that Stream has read them.
+
+**File size limit**: The maximum data volume to store in each queue file before closing it. Enter a numeral with units of KB, MB, etc. Defaults to `1 MB`.
+
+**Queue size limit**: The maximum amount of disk space the queue is allowed to consume. Once this limit is reached, Cribl Stream stops queueing and applies the fallback **Queue‑full behavior**. Enter a numeral with units of KB, MB, etc. 
+
+**Queue file path**: The location for the persistent queue files. Defaults to `$CRIBL_HOME/state/queues`. To this value, Cribl Stream will append `/<worker‑id>/<output‑id>`.
+
+**Compression**: Codec to use to compress the persisted data, once a file is closed. Defaults to `None`; `Gzip` is also available.
+
+### Processing Settings {#processing}
+
+#### Fields
+
+In this section, you can define new fields or modify existing ones using JavaScript expressions, similar to the [Eval](eval-function) function. 
+
+* The **Field Name** can either be a new field (unique within the event) or an existing field name to modify its value.
+* The **Value** is a JavaScript expression (enclosed in quotes or backticks) to compute the field's value (can be a constant). Select this field's advanced mode icon (far right) if you'd like to open a modal where you can work with sample data and iterate on results.
+
+This flexibility means you can:
+
+* Add new fields to enrich the event.
+* Modify existing fields by overwriting their values.
+* Compute logic or transformations using JavaScript expressions.
+
+#### Pre–Processing
+
+In this section's **Pipeline** drop-down list, you can select a single existing [Pipeline](pipelines) or [Pack](packs) to process data from this input before the data is sent through the Routes.
+
+### Auth Token
+
+This section is only available for Cribl.Cloud environments. It is intended for use when migrating data from an on-prem environment to a Cribl.Cloud environment.
+
+If you previously had an on-prem deployment of Cribl and you are moving forward with a Cloud-first or Cloud only solution, you can use connected environments to onboard your data from on-prem Worker Nodes to their counterpart Cribl.Cloud Worker Nodes. See [Migrate Data from On-Prem to Cribl.Cloud](cloud-connected-data-transfer) for implementation details.
+
+### Advanced Settings {#advanced}
+
+**Show originating IP**: Toggle on when clients are connecting through a proxy that supports the `X-Forwarded-For` header to keep the client's original IP address on the event instead of the proxy's IP address. This setting affects how the Source handles the [`__srcIpPort` field](#src-ip-port).
+
+**Capture request headers**: Toggle on to add request headers to events, in the `__headers` field.
+
+**Health check endpoint**: Toggle on to enable a health check endpoint specific to this Source, `http(s)://<host>:<port>/cribl_health`. A `200` HTTP response code is returned when the Source is healthy. Otherwise, two errors you could receive are:
+  * `ECONNRESET` where the Source failed to initialize due to not having listeners on the port.
+  * `503` or `Server is busy, max active connections reached` indicate there are too many connections per Worker Process.
+
+**Active request limit**: Maximum number of active requests allowed for this Source, per Worker Process. Defaults to `256`. Enter `0` for unlimited.
+
+**Activity log sample rate**: Determines how often request activity is logged at the `info` level. The default `100` value logs every 100th value; a `1` value would log every request; a `10` value would log every 10th request; etc.
+
+**Requests-per-socket limit**: The maximum number of requests Cribl Stream should allow on one socket before instructing the client to close the connection. Defaults to `0` (unlimited). See [Balancing Connection Reuse Against Request Distribution](#max-requests-per-socket) below.
+
+**Socket timeout (seconds)**: How long Cribl Stream should wait before assuming that an inactive socket has timed out. The default `0` value means wait forever.
+
+**Request timeout (seconds)**: How long to wait for an incoming request to complete before aborting it. The default `0` value means wait indefinitely.
+
+**Keep-alive timeout (seconds)**: After the last response is sent, Cribl Stream will wait this long for additional data before closing the socket connection. Defaults to `5` seconds; minimum is `1` second; maximum is `600` seconds (10 minutes).
+
+> The longer the **Keep‑alive timeout**, the more Cribl Stream will reuse connections. The shorter the timeout, the closer Cribl Stream gets to creating a new connection for every request. When request frequency is high, you can use longer timeouts to reduce the number of connections created, which mitigates the associated cost.
+>
+{.box .success}
+
+**IP allowlist regex**: Grants access to requests originating from specific IP addresses that match a defined pattern. Unmatched requests are rejected with a 403 (Forbidden) status code. Defaults to `.*` (allow all).
+
+**IP denylist regex**: Blocks requests originating from specific IP addresses that match a defined pattern, even if they would be allowed by default. Rejected requests receive a 403 (Forbidden) status code. Defaults to `^$` (allow all).
+
+**Environment**: If you're using GitOps, optionally use this field to specify a single Git branch on which to enable this configuration. If empty, the config will be enabled everywhere.
+
+#### Balancing Connection Reuse Against Request Distribution {#max-requests-per-socket}
+
+**Requests-per-socket limit** allows you to limit the number of HTTP requests an upstream client can send on one network connection. Once the limit is reached, Cribl Stream uses HTTP headers to inform the client that it must establish a new connection to send any more requests. (Specifically, Cribl Stream sets the HTTP `Connection` header to `close`.) After that, if the client disregards what Cribl Stream has asked it to do and tries to send another HTTP request over the existing connection, Cribl Stream will respond with an HTTP status code of `503 Service Unavailable`.
+
+Use this setting to strike a balance between connection reuse by the client, and distribution of requests among one or more Worker Node processes by Cribl Stream:
+
+* When a client sends a sequence of requests on the same connection, that is called connection reuse. Because connection reuse benefits client performance by avoiding the overhead of creating new connections, clients have an incentive to **maximize** connection reuse.
+
+* Meanwhile, a single process on that Worker Node will handle all the requests of a single network connection, for the lifetime of the connection. When receiving a large overall set of data, Cribl Stream performs better when the workload is distributed across multiple Worker Node processes. In that situation, it makes sense to **limit** connection reuse.
+
+There is no one-size-fits-all solution, because of variation in the size of the payload a client sends with a request and in the number of requests a client wants to send in one sequence. Start by estimating how long connections will stay open. To do this, multiply the typical time that requests take to process (based on payload size) times the number of requests the client typically wants to send.
+
+If the result is 60 seconds or longer, set **Requests-per-socket limit** to force the client to create a new connection sooner. This way, more data can be spread over more Worker Node processes within a given unit of time.
+
+For example: Suppose a client tries to send thousands of requests over a very few connections that stay open for hours on end. By setting a relatively low **Requests-per-socket limit**, you can ensure that the same work is done over more, shorter-lived connections distributed between more Worker Node processes, yielding better performance from Cribl Stream.
+
+A final point to consider is that one Cribl Stream Source can receive requests from more than one client, making it more complicated to determine an optimal value for **Requests-per-socket limit**.
+
+### Connected Destinations {#connected}
+
+Select **Send to Routes** to enable conditional routing, filtering, and cloning of this Source's data via the Routing table.
+
+Select **QuickConnect** to send this Source’s data to one or more Destinations via independent, direct connections.
+
+## Internal Fields {#internal-fields}
+
+Cribl Stream uses a set of internal fields to assist in handling of data. These "meta" fields are **not** part of an event, but they are accessible, and [Functions](functions) can use them to make processing decisions.
+
+The Cribl HTTP Source (and the Cribl TCP Source) treat internal fields differently than other Sources do. That's because of the difference in the way that incoming data originates.
+
+Other Sources ingest data that's not coming from Cribl Edge or Stream, meaning that no Cribl internal fields can be present in that data when it arrives at the Source, and the Source is free to add internal fields without clobbering (overwriting) anything that existed already.
+
+By contrast, the Cribl HTTP Source and the Cribl TCP Source ingest data that's coming from a Cribl HTTP or Cribl TCP Destination. That data  **can** contain internal fields when it arrives at the Source. This means that if the Source adds internal fields, those could potentially clobber what existed before.
+
+To avoid this problem, the Cribl HTTP Source and the Cribl TCP Source add a unique `__forwardedAttrs` (i.e., "forwarded attributes") field. The nested structure of the `__forwardedAttrs` field contains any of the following fields that are present in the arriving data:
+
+| Internal Fields |
+|--|
+| `__headers` – Added only when **Advanced Settings** > **Capture request headers** is toggled on. |
+| `__inputId` |
+| `__outputId` |
+|`fleet`/ `group`|
+| `__srcIpPort` – See details [below](#src-ip-port). |
+
+| Other Fields |
+|--|
+| `cribl_breaker` |
+| `cribl_pipe` |
+
+These fields are **copied** into`__forwardedAttrs`, not moved there. As the data (apart from `__forwardedAttrs`) moves through the Source and any Pipelines, the values of these fields can be overwritten. But the copies of these fields in `__forwardedAttrs` remain unchanged, so you can retrieve them as necessary.
+
+### Overriding `__srcIpPort` with Client IP/Port {#src-ip-port}
+
+The `__srcIpPort` field's value contains the IP address and (optionally) port of the HTTP client sending data to this Source.
+
+When any proxies (including load balancers) lie between the HTTP client and the Source, the last proxy adds an `X‑Forwarded‑For` header whose value is the IP/port of the original client. With multiple proxies, this header's value will be an array, whose first item is the original client IP/port.
+
+If `X‑Forwarded‑For` is present, and **Advanced Settings** > **Show originating IP** is toggled off, the original client IP/port in this header will override the value of `__srcIpPort`.
+
+If **Show originating IP** is toggled on, the `X‑Forwarded‑For` header's contents will **not** override the `__srcIpPort` value. (Here, the upstream proxy can convey the client IP/port without using this header.)
+
+## Troubleshooting
+
+### Dropping request because token invalid","authToken": "Bas...Njc="
+
+The specified token is invalid. Note that the above message is logged only at the debug level.

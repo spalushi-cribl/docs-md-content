@@ -1,0 +1,608 @@
+# Upgrading
+
+
+This page outlines how you can upgrade a Cribl Stream [single-instance](deploy-single-instance)
+or [distributed deployment](deploy-distributed) along one of these
+supported upgrade paths, which apply to UI-based upgrades:
+
+| Current Version            | Upgrade Path                       |
+|----------------------------|------------------------------------|
+| 4.x                        | 4.x                                |
+| 3.x                        | 3.x through 4.x                    |
+| 2.x                        | 2.x through 4.x                    |
+| 1.7.x or 2.0.x             | 2.x.x, then 3.x or 4.x             |
+| 1.6.x or below             | 1.7.x, then 2.x.x, then 3.x or 4.x |
+
+> If you're upgrading Worker Nodes directly from the command line, you don't have to worry about a version upgrade path - there are no restrictions on the versions you can upgrade from or to.
+>
+{.box .info}
+
+## Considerations {#upgrade-considerations}
+
+Here are some considerations to look at before you upgrade.
+
+#### Upgrading to v.4.3.x using Leader-Managed Upgrades for Worker Nodes
+
+If a Leader is on Cribl Stream 4.3.x, you should upgrade all Worker Nodes to 4.3.x **before** making any config changes or committing and deploying to the Nodes.
+
+If you have already committed and deployed to Nodes that are on a version earlier than 4.3.0, and the Leader is on 4.3.x, you won't be able to upgrade the Nodes. In this case, here are three workaround options:
+
+- Revert and redeploy the last commit, then upgrade the Worker Nodes and deploy the most up-to-date changes; **or**
+
+- Upgrade the Worker Nodes via command line or script; **or**
+
+
+- Downgrade the Leader to v.4.2.2, and wait for a future release that will enable you to upgrade Worker Nodes across all Leaders and 4.x.x versions.
+
+If you run into issues, contact support@cribl.io for resolution help.
+
+### General Upgrade Considerations
+
+Cribl Stream does **not** support direct upgrades from any pre-GA version (such as a Cribl-provided test candidate) to a GA version. To get the GA version running, you must perform a new install. 
+
+#### Cribl Stream Upgrades
+
+Cribl Stream automatically upgrades the Leader Node in Cribl.Cloud deployments. For customer-managed (hybrid) Cribl.Cloud Worker Groups, and all on-premise deployments, manual upgrades are required for Worker Groups and distributed instances. Maintaining compatible versions across all Cribl Stream deployments—whether in the cloud, hybrid, or on-premise—is crucial for optimal performance and stability.
+
+##### Version Compatibility Guidelines
+
+This matrix outlines the supported version differences between Leader Nodes and Worker Groups (or distributed instances) across all deployment types (Cribl.Cloud, hybrid, and on-premise). Keeping your deployments within these guidelines is essential for proper functionality and support.
+
+- **Minor Versions**: A Worker Group or distributed instance that is one minor version behind the Leader Node (e.g., Worker Group on v4.5.1 and Leader on v4.6.0) is supported. However, new features introduced in the Leader's version will not function on the older Worker Group or instance. A version difference greater than one minor version is not supported and may lead to unpredictable behavior and compatibility issues. Support requests for configurations exceeding this limit will require updating to compatible versions.
+- **Patch Versions**: Leaders and Worker Groups/instances on different patch versions within the same minor version (e.g., Worker Group on v4.5.0 and Leader on v4.5.1) are supported.
+
+We strongly recommend keeping Leader Nodes and Worker Groups/instances on the same version for the best experience and to ensure access to all features.
+#### Requirements for Specific Version Upgrades
+
+ - If you’re upgrading to v.3.5.4 or later, all Worker Nodes will need to be on the same version as the Leader. Leaders running v.3.5.4 and later test whether Worker Nodes are running a compatible version before deploying configs that could break Workers' data flow. The Leader will prompt you to upgrade these Nodes as needed.
+
+- Version 3.5.4 was also a compatibility breakpoint for the Cribl HTTP [Source](sources-cribl-http) and [Destination](destinations-cribl-http), and for the Cribl TCP [Source](sources-cribl-tcp) and [Destination](destinations-cribl-tcp). When running on Cribl Stream 3.5.4 and later, these two Sources can send data only to Nodes running v.3.5.4 and later, and these two Destinations can receive data only from Nodes running v.3.5.4 and later. When running on Stream 3.5.3 and earlier, these four integrations can similarly interoperate only with Nodes running v.3.5.3 and earlier.
+
+- Before upgrading your Leader to v.4.0 and later, see [Persisting Socket Connections](deploy-distributed#socket) 
+  to prepare the host to keep communications open from Workers. 
+
+- Cribl Stream 4.1 and later encrypt TLS certificate private key files when you
+  add or modify them. See instructions just below for backing up your keys from
+  earlier versions. 
+
+## Safeguarding Unencrypted Private Key Files for Rollback {#safeguarding}
+
+Before upgrading from a pre-4.1 version, make a backup copy of all unencrypted
+TLS certificate private key files. Having access to the unencrypted files is
+essential if you later find that you need to roll back to your previous version.
+
+To safeguard your unencrypted private keys, make a full backup of all Cribl
+config files. Files in the `auth/certs` directory are particularly important,
+such as those in: 
+
+- `groups/default/local/cribl/auth/certs/`
+- `groups/<groupname>/local/cribl/auth/certs/`
+- `cribl/local/cribl/auth/certs/`
+- Etc.
+
+Take appropriate precautions to prevent unauthorized access to these unencrypted
+private key files. If you need to roll back to a pre-4.1 version, see 
+[Restoring Unencrypted Private Keys](securing-and-monitoring#restoring).
+
+## Considerations for Firewalls/Web Proxies
+
+You may encounter the "unsafe legacy renegotiation disabled" error when the Cribl Stream Leader attempts to connect to the CDN, preventing Worker Node upgrades.
+
+This error occurs if your firewall or proxy (like PAN firewalls) doesn't support the [TLS Renegotiation Indication Extension (RFC 5746)](https://datatracker.ietf.org/doc/html/rfc5746).
+
+Ensure your firewall or proxy is compliant with RFC 5746. Contact your firewall/proxy vendor for update instructions.
+
+### Disable SNI Routing for Firewalls/Web Proxies {#sni}
+
+There is a setting in `cribl.yml` to help you manage Server Name Indication (SNI) routing, which can be helpful if you're encountering difficulties with proxies or firewalls. 
+
+If you have a proxy or firewall deployed between your Cribl Stream Workers and the Leader, this new setting allows you to disable SNI routing for specific Groups.
+
+To disable SNI routing for a Group: Navigate to **Group Settings** > **General Settings** > **SNI** > **Disable SNI Routing** option. **Commit** and **Deploy** and then proceed with the upgrade. You must enable this setting for every Group that is behind a web proxy or firewall.
+
+
+## Standalone/Single-Instance {#single}
+
+To upgrade a single-instance deployment from the UI, select **Settings** > **System** > **Upgrade**.
+
+To upgrade a single-instance deployment using the command line:
+
+1. Stop Cribl Stream. 
+
+2. Uncompress the new version on top of the old one.
+
+   On some Linux systems, `tar` might complain with: `cribl/bin/cribl: Cannot
+   open: File exists`. In this case, please remove the `cribl/bin/cribl`
+   directory if it's empty, and untar again. If you have **custom functions** in
+   `cribl/bin/cribl`, please move them under
+   `$CRIBL_HOME/local/cribl/functions/` before untarring again.
+
+3. Restart Cribl Stream.
+
+##  Distributed Deployment  {#distributed}
+
+You can upgrade Leader and Worker Nodes with the [command line interface](#cli) (CLI) or the [user interface](#ui) (UI).
+
+### Upgrade and Automatic Rollback via the UI {#ui}
+
+When you choose to upgrade via the UI, Cribl Stream stops its own server, updates the installed package, and restarts Stream for you.
+
+> Upgrading through the UI is not supported for distributed environments with an [additional Leader](deploy-add-second-leader) configured for high availability/failover. Instead, [use the command line interface (CLI) to upgrade](#cli).
+>
+{.box .warning}
+
+Here's how to access the Upgrade UI in Stream:
+
+1. First, select **Settings** from the top navigation.
+1. Select **Upgrade** depending on your deployment type:
+
+    - In a single-instance deployment, select **System**, then **Upgrade**. 
+    - To upgrade the Leader Node, select **Global Settings**, then **System** and **Upgrade**. 
+    - To upgrade a single Worker Group, select **Stream Settings** then **Group Upgrade**. 
+
+You can also enable an automatic [backup and rollback](#back) in case an upgrade
+fails.
+
+> These options will work only if all Stream instances
+> (including Worker Processes) start at v.2.4.4 or higher. For other
+> version-specific limitations, please see  [Known Issues](known-issues).
+>
+{.box .warning}
+
+#### Upgrading the Leader via the UI
+
+To upgrade the Leader in a distributed deployment, go to **Settings**, then
+select **Upgrade** under **Global Settings**.
+
+When upgrading, you can choose to either download upgrade packages from Cribl's
+content delivery network (CDN), or from a filesystem location that you specify
+in the form of a path.
+
+##### Selecting a Package Source
+
+Here, you'll select between **CDN** and **Path** for your upgrade (in an
+on-prem, distributed deployment):
+
+|Package Source|Description|When You Select This Package Source|
+|------------|-----------|-----------|
+|<div style="width: 150px">CDN</div>  |Downloads an installation package directly from Cribl's content delivery network.|With **CDN** selected, you can see the currently installed version and the version available on the CDN. The Leader will always upgrade to the current CDN version when you click **Upgrade**.|
+|Path        |You designate the path to the installation package in the **Path** field.|You must designate the correct paths for your Leader and Worker Groups, both version and architecture. For example, a Worker Group that contains ARM64 Workers will require an ARM64 installation package.|
+
+Use the buttons to choose the desired package source. Then, the UI will display
+settings and information appropriate for the package source you chose, as
+described in the respective [Configuring Stream Settings for CDN Upgrade](#configuring-stream-settings-for-cdn-upgrade) and
+[Configuring Stream Settings for Path Upgrade](#configuring-stream-settings-for-path-upgrade) sections below.
+
+##### Configuring Stream Settings for CDN Upgrade
+
+![Upgrade Stream using CDN](stream-upgrade-4-6.png)
+{scale="60%" border="true"}
+
+If you select **CDN** as your upgrade method, you will see the following options:
+
+- **Current CDN version**: This lists the latest version of Cribl Stream available on the CDN.
+- **Leader**: This shows the currently installed version of Cribl Stream on the Leader. If a newer version 
+  is available, you will be able to use the **Upgrade to** button.
+- **Stream Worker Groups**: Provides a quick link to the Group Upgrade page
+  if you want to upgrade Worker Groups individually.
+
+  >In Cribl.Cloud, this area will only show Hybrid Workers.
+  {.box .cloud} 
+
+  To automatically upgrade Workers to the Leader version, enable **Upgrade Workers automatically**.
+  See [Automatic Upgrades](#automatic-upgrades) for more details.
+
+- **Edge Fleets**: Offers **Upgrade Options** for Edge. See 
+  [Enable Legacy Edge Upgrades](/edge/upgrading-ui/#enable-edge-legacy-upgrades) 
+  for more information.
+
+##### Configuring Stream Settings for Path Upgrade
+
+![Upgrade Stream using Path](stream-upgrade-path-4-6.png)
+{scale="60%" border="true"}
+
+With **Path** as your upgrade method, you'll see the following settings and
+information in the **Package Source** table:
+
+- **Platform-Specific Package Location**: Enter or paste the path to the Cribl 
+  installation package. This can be either of the following: 
+    
+    * An HTTP URL, for example `https://cdn.cribl.io/dl/4.1.0/cribl-4.1.0-6979aea9-linux-x64.tgz`
+    * A local filesystem path, for example `myfolder/directory/cribl-package.tgz
+
+- **Package Hash Location**: Enter either of the following:
+
+    * An HTTP URL, for example `https://cdn.cribl.io/dl/4.1.0/cribl-4.1.0-6979aea9-linux-x64.tgz.sha256`
+    * A local filesystem path to the hash that validates the package.
+
+    Supports SHA‑256 and MD5 formats. You can simply append `.sha256` to the
+    contents of the **Platform‑specific package location** field.
+
+  >When Stream is running in [FIPS mode](fips-mode), MD5 is not an acceptable hashing algorithm.
+  {.box .info}
+
+- **Leader**: Indicates the version the Leader will be upgraded to when an
+  upgrade is available and you click the **Upgrade to** button.
+- **Stream**: The version in this row will be used to upgrade the Stream Worker Group,
+  because it matches the Leader's version.
+- **Edge**: The version in this row will be used to [upgrade Edge Fleets](/edge/upgrading-ui#upgrading-edge-nodes) 
+  with a matching target version.
+- **Version**: Displays the package version in this row.
+- **Platform**: Displays the platform architecture for the package in this row.
+
+Select **X** to immediately delete a row – there is no confirmation prompt.
+
+> You can add multiple rows to this table to specify packages for different
+> versions and platforms/architectures. To obtain the latest packages from
+> https://cribl.io/download, use the drop-down list to specify each platform
+> (for example, x64 versus ARM). When you stage these packages on your own servers,
+> preserve the original file names.
+>
+{.box .success}
+
+**Leader** area: Shows you the currently installed Leader version and whether an
+upgrade is available. Check the [backup and rollback](#backup-and-rollback)
+settings before you upgrade.
+
+**Stream Worker Groups**: Provides a quick link to the Group Upgrade page
+if you want to upgrade Worker Groups individually.
+
+To automatically upgrade Workers to the Leader version, enable [**Upgrade Workers automatically**](#automatic-upgrades).
+
+The **Edge Fleets** area offers **Upgrade Options** for Edge. See 
+[Enable Legacy Edge Upgrades](/edge/upgrading-ui#enable-edge-legacy-upgrades) and
+[Configuring Edge Settings for Path Upgrade](/edge/upgrading-ui#configuring-edge-settings-for-path-upgrade)
+for more information.
+
+##### Missing Package Links
+
+When you see this warning, it means there are Worker Groups that can't be
+upgraded due to a missing package path.
+
+To add package links:
+
+1. Click the **Copy** icon to add the link to your clipboard.
+1. Paste the copied package link into a new **Platform-specific package location** field.
+1. Add the appropriate path directory to the beginning of the installation
+   package path (where your Cribl upgrade packages are located).
+   
+   For example: `myfolder/directory/cribl-package.tgz`
+
+1. Click **Save** to add the upgrade package path and resolve the warning.
+
+##### Automatic Upgrades
+
+You can enable **Upgrade Workers automatically** in **Global Settings** to check
+for Workers running an earlier version than the Leader, and automatically upgrade
+them to match the Leader. 
+
+**Enable automatic upgrades** has a different default state depending on the
+deployment type:
+
+- In on-prem/​customer-managed deployments, **Enable automatic upgrades**
+  defaults to `No`, to prevent the Leader from automatically upgrading
+  out-of-date Worker Nodes. Before you toggle this to `Yes`, upgrade the Leader
+  itself to Cribl Stream's most recent version.
+
+- In [Cribl.Cloud](deploy-cloud) deployments, **Enable automatic upgrades**
+  defaults to `Yes`. This enables Cribl to automatically upgrade Worker Nodes to
+  Cribl Stream's newest stable version. (Cribl-managed and hybrid Workers will
+  auto-upgrade as soon as they see a new Leader version.) If you toggle this to
+  `No`, you will need to explicitly upgrade each Worker.
+
+When enabled, the automatic Worker upgrade process works like this: 
+
+1. The Leader pulls packages, and checks their hashes.
+
+    * The Leader must be able to connect to the path.
+    * The Leader must also have privileges to download the files.
+    * If the path is an HTTP URL, the Leader copies the file to a known location
+      in its filesystem.
+    * If the package is already hosted on the Leader Node, specify its
+      filesystem path.
+
+2. Workers pull packages and check their hashes.
+
+    * Workers pull from Cribl’s content delivery network (CDN) and fall back to the Leader through HTTP, not directly from the Leader's
+      filesystem.
+    * Each Worker pulls the package that is appropriate for that Worker's
+      platform and architecture. 
+
+3. Workers install the packages.
+
+
+#### Upgrade Worker Groups via the UI {#ui-workers}
+
+To upgrade a Worker Group:
+
+1. Go to **Settings**, then **Stream Settings**. 
+1. Select **Group Upgrade**. 
+1. Click the **Upgrade** button in a row to upgrade that Group. 
+
+The resulting **Upgrade Group** modal offers two states: Basic Upgrade and
+Advanced Upgrade.
+
+> Upgrading Workers from the Leader requires a Cribl Stream Standard or
+> Enterprise [license](licensing).
+>
+{.box .info}
+
+##### Basic Upgrade Configuration
+
+In this default **Upgrade Group** modal, you can simply upgrade the whole
+Group, by clicking the modal's **Upgrade** button to confirm. 
+
+When one or more Workers can be upgraded in the Group, the **Upgrade** button will be enabled.
+
+By clicking the **Upgrade** button, you can initiate the upgrade job with a task for each Worker that can be upgraded.
+
+Cribl Stream will check to ensure that Workers are upgraded no higher than the
+Leader's version. Upgrades are performed as the user that was running
+Cribl Stream on each machine.
+
+The **Worker Nodes** column will display a warning icon with a tooltip if the Group contains Workers that can't be upgraded for one or more of the following reasons:
+
+- Workers are already running the current version.
+- Workers running v.2.4.4 or older are too old to upgrade.
+
+When none of the Workers in the Group can be upgraded, the **Upgrade** button will be disabled. 
+
+##### Advanced Upgrade Configuration
+
+Click the modal's gear (⚙️) button to expose these additional options:
+
+**Quantity %**: Specify what percentage of the Group's Workers to upgrade in
+this operation. If you enter a value less than the default `100`%, Cribl Stream
+will perform a partial upgrade, keeping the remaining Workers active to process
+data.
+
+**Rolling upgrade**: This option upgrades Workers in batches, each sized
+according to the value in the **Quantity %** field. When enabled, this toggle also enables the modal's two remaining controls: 
+
+- **Retry delay (ms)**: How many milliseconds to wait between upgrade attempts.
+  Defaults to `1000` ms (1 second).
+
+- **Retry count**: How many times to retry a failed upgrade. Defaults to `5`.
+
+After you confirm the Worker Group upgrade, the table on the Group Upgrade page will display an additional button on this Group's row:
+
+* **View**: Click to display the upgrade task's status in the Job Inspector modal
+– select that modal's **System** tab to access details.
+
+> When you initiate an upgrade via the UI, the new package is untarred to
+> `$CRIBL_HOME/unpack.<random‑hash>.tmp`. This location inherits the permissions
+> you've already assigned to `$CRIBL_HOME`. 
+>
+{.box .info}
+
+#### Backup and Rollback
+
+When you initiate an upgrade through the UI, Cribl Stream first stores a backup
+of your current stable deployment. If the upgrade fails, then by default, Stream
+will automatically roll back to the stored backup package. You can adjust this
+behavior in **Settings**. 
+
+Go to **Global Settings**, then **System** and **General Settings**, then **Upgrade & Share Settings**. 
+
+Use the following controls to adjust backup and rollback behavior. 
+
+> Cribl Stream can perform rollbacks only on Worker Nodes/instances
+> that were running at least v.3.0.0 before the attempted upgrade. 
+>
+{.box .warning}
+
+**Enable automatic rollback**: Cribl Stream will automatically roll back an
+upgrade if the Cribl Stream server fails to start, or if the Worker Node fails
+to connect to the Leader. (Toggle to `No` to defeat this behavior.)
+
+**Rollback timeout (ms)**: Time to wait, after an upgrade, before checking each
+Node's health to determine whether to roll back. Defaults to `30000`
+milliseconds, i.e., 30 seconds.
+
+**Rollback condition retries**: Number of times to retry the health check before
+performing a rollback. Defaults to `5` attempts.
+
+**Check interval (ms)**: Time to wait between health-check retries. Defaults to
+`1000` milliseconds, i.e., 1 second.
+
+**Backups directory**: Specify where to store backups. Defaults to
+`$CRIBL_HOME/state/backups`.
+
+**Backup persistence**: A relative time expression specifying how long to keep
+backups after each upgrade. Defaults to `24h`.
+
+### Upgrade and Rollback via the CLI {#cli}
+
+For a Distributed Deployment, this is the general upgrade order:
+
+First, upgrade the Leader Node. Then, upgrade the Worker Nodes. Lastly, commit
+and deploy the changes on the Leader.
+
+> For distributed environments with a [second (standby) Leader](deploy-add-second-leader) configured for high availability/failover, this is the upgrade order:
+>
+> 1. Stop the standby Leader for your [Stream](/stream/upgrading/) or [Edge](/edge/upgrading/) deployment.
+> 1. Upgrade the standby Leader.
+> 1. Start the standby Leader.
+> 1. Stop the primary Leader. The standby will take over as primary.
+> 1. Upgrade the former primary Leader.
+> 1. Start the former primary Leader, which will become the new standby Leader.
+>
+{.box .info}
+
+#### Upgrade the Leader Node via the CLI
+
+1. Commit and deploy your desired previous version. (This will be your most
+   recent checkpoint.)
+
+   Optionally `git push` to your configured remote repo.
+
+2. [Stop](cli-reference#stop) Cribl Stream. 
+
+   - Optional but recommended: Back up the entire `$CRIBL_HOME` directory.
+
+   - Optional: Check that the Worker Nodes are still functioning as expected. In
+     the absence of the Leader Node, they should continue to work with their
+     last deployed configurations. 
+
+3. Uncompress the new Cribl Stream version on top of the old one.
+
+4. Change ownership of the `cribl` directory as needed: `[sudo] chown -R cribl:cribl $CRIBL_HOME`
+
+5. Restart Cribl Stream and log back in. 
+
+6. Wait for all the Worker Nodes to report to the Leader, and ensure that they
+   are correctly reporting the last committed configuration version. 
+
+> ##### Upgrading from 4.1.0
+>
+> When upgrading a Leader Node from version 4.1.0 using the UI, you may encounter
+> the following error: 
+> 
+> `{"status":"error","message":"Protocol \"https:\" not supported. Expected \"http:\"","error":{"code":"ERR_INVALID_PROTOCOL"}}`
+> 
+> To resolve this, configure the `no_proxy` directive to include the API's
+> listening address on the Leader Node. To encompass all addresses, set `no_proxy`
+> to `0.0.0.0`. This prevents internal traffic on the Leader Node from passing
+> through the proxy server.
+> 
+> Here's an example `No_Proxy` configuration:
+> 
+> `http_proxy=http://localhost:1234 https_proxy=http://localhost:1234 no_proxy=0.0.0.0 bin/cribl start`
+> 
+> This extra step is due to changes in communication between the connection
+> listener service and the API server via an `http` client.
+>
+{.box .warning}
+
+#### Upgrade the Worker Nodes via the CLI
+
+These are the same basic steps as when upgrading a [single instance deployment](#single),
+above:
+
+1. [Stop](cli-reference#stop) Cribl Stream on each Worker Node.
+
+2. Uncompress the new version on top of the old one.
+
+3. Change ownership of the `cribl` directory as needed: `[sudo] chown -R cribl:cribl $CRIBL_HOME`
+
+4. Restart Cribl Stream.
+
+#### Commit and Deploy All Changes from the Leader Node
+
+1. Ensure that newly upgraded Worker Nodes report to the Leader with their
+   **new** software version. 
+
+2. Commit and deploy the newly updated Leader configuration after all Workers have upgraded.
+
+![Successful upgrade confirmation](post-worker-upgrade.50e60340f0.png)
+
+> ##### Breaking Change at v.3.2 {{< id `3.2.x-ui` >}}
+>
+> Because of a breaking change at v.3.2, Leaders running v.3.2.x cannot upgrade (via the UI) Workers running versions prior to 3.2.0. The upgrade will fail with errors of the form: `Error checking upgrade path` and `Cannot read property 'greaterThan' of
+> undefined`.
+> 
+> The workaround is to upgrade these Workers [via the filesystem](upgrading#distributed) to v.3.2.0 or higher. The error does not affect upgrades of Workers running v.3.2.0+. 
+>
+{.box .warning}
+
+#### Manual Rollback {#rollback}
+
+Using [CLI commands](cli-reference#command-syntax), it's possible to explicitly
+roll back an on-prem Leader, and on-prem or hybrid Workers, to an earlier
+release. This works much like an upgrade.
+
+Explicit rollback might be necessary if an [automatic rollback](#back)
+fails. Otherwise, Cribl recommends
+first considering other options – an upgrade, or working with Cribl Support –
+before a manual rollback. Rollback can encounter these complications:
+
+- Your current configuration might take advantage of dependencies not supported
+  in an earlier release.
+- Do not manually roll back any Cribl Stream instance running in a container.
+  Instead, locate, download, and launch a
+  [container image](https://hub.docker.com/r/cribl/cribl/tags) hosting the
+  earlier version you want.
+
+##### Rollback Outline {#rollback-outline}
+
+We assume that you are rolling back to a previously deployed version that you
+know to be stable in your environment. The broad steps are:
+
+1. Ideally, [link](/stream/version-control#remote-setup) your deployment to a
+   Git remote repo.
+   [Commit and push](/stream/version-control#pushing-to-a-remote-repo) your
+   Leader's configuration to that remote. The repo will provide a stable
+   location from which to recover your config, if necessary.
+
+2. Stop the Leader instance. (From `$CRIBL_HOME/bin/`, execute `./cribl stop`.)
+
+3. Also create a local backup of your Leader's whole `$CRIBL_HOME` directory.
+
+4. Obtain the installation package for the earlier release and platform you
+   need. (See the [Rollback Example](#rollback-example).)
+
+5. [Uncompress](deploy-single-instance#install) the earlier version to your
+   original deployed directory. You can do this from the command line or
+   programmatically (see the [Rollback Example](#rollback-example)).
+
+  If installing to your existing target directory fails, try the same
+  mitigations we list [above](#single) for upgrades.
+
+6. In a [distributed deployment](#distributed), Workers must not run a higher
+   version than the Leader. Repeat steps 2, 3, and 5 above on all Workers
+   (substituting “Worker” for “Leader”).
+
+##### Rollback Example {#rollback-example}
+
+Although rollback can be partially scripted, you cannot discover older installation packages programmatically – the initial steps here require human intervention:
+
+1. Stop and back up the Leader. (Follow steps 1–3 in the [Rollback Outline](#rollback-outline).)
+
+1. Open the **Cribl Releases** download page: https://cribl.io/download/.
+
+1. In the **Cribl Past Releases** section, locate the older version that you want to restore.
+
+1. Select your target platform from the adjacent drop-down menu.
+
+1. Click the corresponding download button. The browser downloads the installation package for your target platform and saves it directly to your designated download location. The download URL for installation packages is similar to this example for v.4.1.0: `https://cdn.cribl.io/dl/4.1.0/cribl-4.1.0-6979aea9-linux-arm64.tgz`
+
+1. Navigate to your designated download location to locate the downloaded installation package.
+
+   - For `.tgz` files, double-click the installation package to extract the contents or run a command like `tar -zxvf <fileName>.tgz`
+
+   - For `.msi` files, double-click the installation package to launch the installer
+
+1. Repeat the preceding steps to adjust all Worker Nodes to a compatible version.
+
+## Splunk App Package Upgrade Steps
+
+> See [Deprecation note](deploy-splunkapp) for v.2.1.
+>
+{.box .warning}
+
+Follow these steps to upgrade from v.1.7, or higher, of the Cribl App for Splunk:
+
+1. Stop Splunk.
+
+2. Untar/unzip the new app version on top of the old one.
+
+   On some Linux systems, `tar` might complain with: `cribl/bin/cribl: Cannot open: File
+   exists`. In this case, please remove the `cribl/bin/cribl` directory if it's empty, and
+   untar again. If you have **custom functions** in `cribl/bin/cribl`, please move them under
+   `$CRIBL_HOME/local/cribl/functions/` before untarring again.
+
+3. Restart Splunk.
+
+### Upgrading from Splunk App v.1.6 (or Lower)
+
+As of v.1.7, contrary to prior versions, Cribl's Splunk App package defaults to Search Head
+Mode. If you have v.1.6 or earlier deployed as a Heavy Forwarder app, upgrading requires an
+extra step to restore this setting:
+
+1. Stop Splunk.
+
+2. Untar/unzip the new app version on top of the old one.
+
+3. Convert to HF mode by running: `$SPLUNK_HOME/etc/apps/cribl/bin/cribld mode-hwf` 
+
+4. Restart Splunk.

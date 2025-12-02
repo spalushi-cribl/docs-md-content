@@ -1,0 +1,104 @@
+# Google Security Operations (SecOps) Destination
+
+
+Cribl Stream supports sending data to [Google Security Operations (SecOps)](https://cloud.google.com/chronicle/docs/overview), a cloud service for retaining, analyzing, and searching enterprise security and network telemetry data. This service was [formerly known as Google Chronicle](https://www.googlecloudcommunity.com/gc/SIEM-Forum/Chronicle-Security-Operations-has-been-rebranded-to-Google/m-p/744939).
+
+To define a Google SecOps Destination, you need to [obtain an API key](https://cloud.google.com/chronicle/docs/reference/search-api) from Google. If you want Cribl Stream or an external KMS to manage the API key, [configure](kms-config) a key pair that references the API key.
+
+> Type: Streaming | TLS Support: Yes | PQ Support: Yes 
+>
+{.box .info} 
+
+## Configuring Cribl Stream to Output to SecOps
+
+From the top nav, click **Manage**, then select a **Worker Group** to configure. Next, you have two options:
+
+To configure via the graphical [QuickConnect](quickconnect) UI, click Routing > QuickConnect (Stream) or Collect (Edge). Next, click **+ Add Destination** at right. From the resulting drawer's tiles, select **Google Cloud** > **SecOps** Next, click either **+ Add Destination** or (if displayed) **Select Existing**. The resulting drawer will provide the options below.
+
+Or, to configure via the [Routing](routes) UI, click **Data** > **Destinations** (Stream) or **More** > **Destinations** (Edge). From the resulting page's tiles or the **Destinations** left nav, select **Google Cloud** > **SecOps**. Next, click **New Destination** to open a **New Destination** modal that provides the options below.
+
+### General Settings
+
+**Output ID**: Enter a unique name to identify this SecOps output definition.
+
+**Default log type**: Select an application log type to send to SecOps. (Google SecOps expects all batches for a given Destination to have the same log type.) Can be overwritten by the `__logType` event field, and interacts with the optional **Custom log types** controls below. See the [Google documentation](https://cloud.google.com/chronicle/docs/ingestion/parser-list/supported-default-parsers) for a current list of supported log types. 
+
+### Optional Settings
+
+**Custom log types**: In Cribl Stream 4.0 and later, you can use the **Add type** button here to define each desired type. Each will be a table row with **Log type** and **Description** fields. If you set the **Default log type** drop-down above to the value `Custom`, Cribl Stream will automatically select the first custom log type in this table as the default log type. Use the grab handles at left to reorder table rows.
+
+**Namespace**: Optionally, configure an environment namespace to identify logs' originating data domain. You can use this as a tag when indexing and/or enriching data. The `__namespace` event field, if present, will overwrite this.
+
+**Customer ID**: A unique identifier (UUID) corresponding to a particular SecOps instance. To use this optional field, request the ID from your SecOps representative.
+
+**Send events as**: `Unstructured` is the only currently supported format. Cribl plans to add [UDM](https://cloud.google.com/chronicle/docs/unified-data-model/format-events-as-udm) (Unified Data Model) support in a future release. 
+
+**Log text field**: Specify the event field that contains the log text to send. If you do not specify a log text field, Cribl Stream sends a JSON representation of the whole event.
+
+**Region**: From the drop-down, choose the Google SecOps regional endpoint to send events to.
+
+**Backpressure behavior**: Whether to block, drop, or queue events when all receivers are exerting backpressure. (Causes might include a broken or denied connection, or a rate limiter.) Defaults to `Block`. 
+
+**Tags**: Optionally, add tags that you can use to filter and group Destinations in Cribl Stream's **Manage Destinations** page. These tags aren't added to processed events. Use a tab or hard return between (arbitrary) tag names.
+
+### Authentication
+
+The Google Security Operations Ingestion API key is required to complete this part of the Destination definition.
+
+Use the **Authentication method** buttons to select one of these options:
+
+- **Manual**: In the resulting **API key** field, enter your Google Security Operations Ingestion API key.
+
+- **Secret**: This option exposes a **Secret** drop-down, in which you can select a [stored secret](/stream/securing-and-monitoring#secrets) that references your Google Security Operations Ingestion API key. A **Create** link is available to store a new, reusable secret.
+
+### Persistent Queue Settings
+
+> This section is displayed when the **Backpressure behavior** is set to **Persistent Queue**.
+>
+{.box .info}
+
+**Max file size**: The maximum data volume to store in each queue file before closing it. Enter a numeral with units of `KB`, `MB`, etc. Defaults to 1 MB.
+
+**Max queue size**: The maximum amount of disk space the queue is allowed to consume. Once this limit is reached, queueing is stopped and data blocking is applied. Enter a numeral with units of `KB`, `MB`, etc.
+
+**Queue file path**: The location for the persistent queue files. This will be of the form: `your/path/here/<worker-id>/<output-id>`. Defaults to: `$CRIBL_HOME/state/queues`.
+
+**Compression**: Codec to use to compress the persisted data, once a file is closed. Defaults to `None`; `Gzip` is also available.
+
+**Queue-full behavior**: Whether to block or drop events when the queue is exerting backpressure (because disk is low or at full capacity). **Block** is the same behavior as non-PQ blocking, corresponding to the **Block** option on the **Backpressure behavior** drop-down. **Drop new data** throws away incoming data, while leaving the contents of the PQ unchanged.
+
+**Clear Persistent Queue**: Click this "panic" button if you want to delete the files that are currently queued for delivery to this Destination. A confirmation modal will appear - because this will free up disk space by permanently deleting the queued data, without delivering it to downstream receivers. (Appears only after **Output ID** has been defined.)
+
+### Processing Settings
+
+#### Post-Processing
+
+**Pipeline**: In this section's **Pipeline** drop-down list, you can select a single existing Pipeline to process data from this input before the data is sent through the Routes.
+
+**System fields**: Specify any fields you want Cribl Stream to automatically add to events using this output. Wildcards are supported. By default, includes `cribl_pipe` (identifying the Cribl Stream Pipeline that processed the event).
+
+### Advanced Settings
+
+**Validate server certs**: Toggle to `Yes` to reject certificates that are **not** authorized by a CA in the **CA certificate path**, nor by another trusted CA (e.g., the system's CA).
+
+**Round-robin DNS**: Toggle on to enable round-robin DNS lookup across multiple IP addresses, IPv4 and IPv6. When a DNS server resolves a Fully Qualified Domain Name (FQDN) to multiple IP addresses, Cribl Stream will sequentially use each address in the order they are returned by the DNS server for subsequent connection attempts.
+
+**Compress**: Compresses the payload body before sending. Defaults to `Yes` (recommended).
+
+**Request timeout**: Enter an amount of time, in seconds, to wait for a request to complete before aborting it.
+
+**Request concurrency**: Enter the maximum number of ongoing requests to allow before blocking.
+
+**Max body size (KB)**: Maximum size of the request body before compression. Defaults to `1000` KB in v.4.0.0 to v.4.0.2. Defaults to `1024` KB in v.4.0.3. The actual request body size might exceed the specified value because the Destination adds bytes when it writes to the downstream receiver. Cribl recommends that you experiment with the **Max body size** value until downstream receivers reliably accept all events.
+
+**Max events per request**: Enter the maximum number of events to include in the request body. Defaults to `0` (unlimited).
+
+**Flush period (sec)**: Enter the maximum time to allow between requests. Be aware that small values could cause the payload size to be smaller than the configured **Max body size**.
+
+**Extra HTTP Headers**: Click **+ Add Header** to insert extra headers as **Name/Value** pairs.
+
+**Failed request logging mode**: Use this drop-down to determine which data should be logged when a request fails. Select among `None` (the default), `Payload`, or `Payload + Headers`. With this last option, Cribl Stream will redact all headers, except non-sensitive headers that you declare below in **Safe headers**. 
+
+**Safe headers**: Add headers to declare them as safe to log in plaintext. (Sensitive headers such as `authorization` will always be redacted, even if listed here.) Use a tab or hard return to separate header names.
+
+**Environment**: If you're using GitOps, optionally use this field to specify a single Git branch on which to enable this configuration. If empty, the config will be enabled everywhere.

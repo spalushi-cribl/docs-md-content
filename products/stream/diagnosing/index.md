@@ -1,0 +1,224 @@
+# Diagnose Issues
+
+
+To help diagnose Cribl Stream problems, you can share a diagnostic bundle with Cribl Support. The bundle contains a snapshot of configuration files and logs at the time the bundle was created, and gives troubleshooters insights into how  Cribl Stream was configured and operating at that time. 
+
+## What's in the Diagnostic Bundle
+
+The bundle includes the following subdirectories (and their contents)  of `$CRIBL_HOME`:
+- `.../default/*`
+- `.../local/*` – except for `/local/cribl/auth/`, to exclude sensitive files.
+- `.../log/*`
+- `.../groups/*`
+- `.../state/jobs/*` – will return all jobs if left empty. 
+
+As a security measure, the bundle excludes all `.crt`, `.pem`, `.cer`, and `.key` files from all `$CRIBL_HOME` subdirectories.
+
+## Create and Export a Diagnostic Bundle
+
+If you're managing your own  Cribl Stream deployment (single-instance [Stream](/stream/deploy-single-instance/)/[Edge](/edge/deploy-linux#run-edge/) or distributed [Stream](/stream/deploy-distributed/)/[Edge](/edge/fleet-management/)), you can create and securely share bundles with Cribl Support, either from the UI or via the CLI. 
+
+> With a [Cribl.Cloud](deploy-cloud) deployment, create bundles and securely share them with Cribl Support directly from the UI. In the [Using the UI](#ui) instructions below, **Send to Cribl Support** will always be enabled, and the **Export**/download option will be unavailable.
+>
+{.box .cloud}
+
+### Requirements {#reqs}
+
+Using either medium, you'll need outbound internet access to `https://diag‑upload.cribl.io` and a valid support case number. The above URL works only when using the `cribl diag` command or uploading using the  Cribl Stream UI. (So connecting directly to it with your web browser will fail.)
+
+>If your organization doesn't permit outbound access to `https://diag-upload.cribl.io` to upload from within Cribl, you can also submit diags directly via the Support Portal (login required). If none of these options work with your organization’s policies, please work directly with your Support engineer to find a solution.
+>
+{.box .info}
+
+Open your support case before sending a diagnostic bundle to Cribl Support. Then, when creating the bundle, be sure to use the case number provided. Case numbers are 8 digits in length, and you must include any leading zeros. For example, `00001234`. 
+
+### Use the UI {#ui}
+
+Depending on the issue you're debugging, you can create a bundle either from the Leader or from an individual Worker Node.
+
+#### UI Options {#ui-options}
+
+The **Create & Export Diag Bundle** modal provides these additional options:
+- **Rename .js files**: When enabled, appends `.txt` to JavaScript files in the bundle. Defaults to toggled on.
+- **Include metrics**: Includes metrics in the bundle. Defaults to toggled on.
+- **Include git**: Includes the last 14 days of git log in the bundle, identifying each commit's message, author, timestamp, and files changed. Defaults to toggled on. Unavailable on Leader-managed Stream Workers and Edge Nodes, as well as on Outpost Nodes.
+- **Include top talkers**: Adds detailed metrics for the top 10 Sources, Destinations, Pipelines, Routes, and Packs (based on the last 24 hours) to the diagnostic bundle. These JSON files (such as, `top_sources.json`) contain in/out events and bytes, aiding in troubleshooting and performance analysis. Disabled by default to minimize bundle size, this requires Leader Node access to the `/system/metrics/query` API.
+- **Latest number of jobs**: The number of jobs (and all tasks) the bundle will include. Defaults to empty, which means unlimited jobs.
+- **Include installation logs**: Includes Windows MSI logs, only available on
+  Windows deployments of Cribl Edge. Default is toggled off.
+    - This option is not available for Linux deployments.
+    - If MSI logs are available, the diag bundle will contain them. If no MSI logs
+  are present, the bundle will not contain them even with this option toggled
+  on.
+
+Cribl Support will advise you on changing the defaults here. Disabling
+**Include metrics** can reduce the size of the diag bundle, where necessary.
+
+#### From the Leader Node {#leader}
+
+To create a bundle from the Leader Node, go to **Settings** > **Global** > **Diagnostics** and select **Create Diagnostic Bundle**. 
+- To share the bundle with Cribl Support, toggle **Send to Cribl Support** on. Enter your case number, and then select **Export**. 
+- To download the bundle locally to your machine (on-prem only), select **Export**.
+
+#### From Worker Nodes {#worker}
+
+
+
+To create a bundle from individual Worker Nodes, you must be able to access the Worker Node's UI. You can easily use the Leader to get authenticated access to each Worker Node, if you first enable the parent Worker Group's **Teleport** setting:
+
+1. In the Cribl Stream sidebar, select **Worker Groups**.
+2. Make sure the relevant Worker Group's **Teleport** toggle is on. 
+3. Select the displayed number of Worker Nodes to access the **Worker Nodes** page.
+4. In the **GUID** column, select the link for the Worker Node you're debugging. 
+5. Look for the purple border to confirm that you've teleported to that Worker Node.
+6. Select **Worker Node Settings** (top right) > **Diagnostics** (lower left) > **Diagnostic Bundle**, and select **Create Diagnostic Bundle**.
+7. Use the appropriate **Export** options listed [above](#leader) for the Leader.
+
+On on-prem deployments, new and previously created bundles are stored in `$CRIBL_HOME/diag`. They're also listed in the UI, where you can re-download them or share them with Cribl Support.
+
+### Use the CLI {#cli}
+
+To create a bundle using the CLI, use the `diag` command. (This option is on-prem only.) Depending on the issue you're debugging, you can create a bundle either from the Leader host or from an individual Worker Node host.
+
+``` {title="diag command CLI"}
+# $CRIBL_HOME/bin/cribl diag
+Usage: [sub-command] [options] [args]
+
+Commands:
+create       - Creates diagnostic bundle for this instance, args:
+  [-d]                  - Run create in debug mode
+  [-j]                  - Do not append '.txt' to js files
+  [-k]                  - Include metrics for the top 10 Sources, Destinations, Pipelines, Routes, and Packs from the last 24 hours.
+  [-t <maxIncludeJobs>] - Latest number of jobs to include in bundle
+  [-M]                  - Exclude metrics from bundle
+  [-g]                  - Exclude git log from bundle
+  [-i]                  - Include install logs
+heapsnapshot - Generate heap snapshot of a Cribl process, args:
+  [-p <pid>] - The pid of the process to dump the heap snapshot
+list         - List existing diagnostic bundles
+send         - Send diagnostics bundle to Cribl Support, args:
+   -c <caseNumber> - Cribl Support Case Number
+  [-p <path>]      - Diagnostic bundle path (if empty then new bundle will be created)
+
+## Creating a diagnostic bundle
+# $CRIBL_HOME/bin/cribl diag create
+Created Cribl Stream/Edge diagnostic bundle at /opt/cribl/diag/ <product>-<hostname>-<datetime>.tar.gz.
+
+## Creating and sending a diagnostic bundle
+# $CRIBL_HOME/bin/cribl diag send -c <caseNumber>
+Sent Cribl diagnostic bundle to Cribl Support
+
+## Sending a previously created diagnostic bundle
+# $CRIBL_HOME/bin/cribl diag send -p /opt/cribl/diag/ <product>-<hostname>-<datetime>.tar.gz -c <caseNumber>
+Sent Cribl diagnostic bundle to Cribl Support
+```
+
+For complete command syntax, see [diag](cli-diag).
+
+> Taking a diag from a Cribl Edge Node running on Windows requires setting the `CRIBL_VOLUME_DIR` environment variable.
+> See [`diag`](cli-diag#windows) for more information.
+{.box .info}
+
+##  Include CPU Profiles  {#diag-profile}
+
+> This section is applicable only to Cribl Stream.
+>
+{.box .info}
+
+
+If Cribl Support asks you to grab CPU profiles of Worker Processes, follow these steps:
+
+1. Use `top` or `htop` on the Worker Node to identify Worker Node PIDs consuming a lot of CPU.
+2. See [Measuring CPU or API Load](https://docs.cribl.io/docs/scaling#profiling) for instructions on accessing the UI's **Profile** options (for your deployment type), and generating and saving profiles.
+3. Find the Worker Processes matching the PIDs you identified above.
+4. Select **Profile** on each. Start with the default 10-second **Duration**.
+5. Once the profile is displayed, save it to a `.json` file. (See details at the above link.)
+6. Repeat steps 3–5 for other CPU-intensive Worker Processes.
+7. Upload the profile `.json` files to Cribl Support.
+
+> On an already CPU-starved Worker Node, profiling might fail with an error message, or just hang. In this case, you might need a few retries to get a successful profile.
+>
+{.box .info}
+
+## Include Memory Snapshots {#memory-snapshots}
+
+> Cribl.Cloud does not support taking memory snapshots. This feature is for on-prem deployments only.
+>
+{.box .success}
+
+If you encounter a memory leak, Cribl Support might request a memory snapshot of a `cribl` process to better understand where the leak is occurring. 
+
+There are two ways to generate a memory snapshot:
+- Automatically 
+- Manually
+
+### Automatically Capture a Memory Snapshot
+
+To automatically capture memory snapshots when Worker Processes approach or exceed memory limits, turn on the **Enable heap snapshots setting** in the Worker Group's **General Settings**. Navigate to **Worker Group Settings** > **System** > **Worker Processes** and toggle on. Only the two most recent heap snapshots are retained. Older snapshots are automatically deleted. This behavior cannot be modified. 
+
+This setting should only be enabled if recommended by support or if you are experiencing out-of-memory issues. Be aware that enabling this setting may impact system performance and storage usage. 
+
+For details, see [Worker Processes](group-settings#processes).
+
+### Manually Capture a Memory Snapshot
+
+#### Prerequisites
+
+To manually generate a reliable memory snapshot for Cribl Stream diagnostics, ensure two key conditions are met:
+
+1. **Correct `CRIBL_HOME` Environment Variable**: This variable points to the Cribl Stream installation directory. Open a new terminal session and verify its value using `echo $CRIBL_HOME`. If empty, set it appropriately for your operating system (for example,`export CRIBL_HOME=/path/to/cribl` on Linux, ` setex cribl C:\Program Files\Cribl /m` on Windows).
+
+2. **Run as the `cribl` User**: The `diag heapsnapshot` command requires permissions to create the snapshot file within the run Cribl Stream directory. Use `sudo su - cribl` to switch to the cribl user before running the command. Remember to exercise caution with `sudo`. On Windows, if Cribl is set to run under a specific user account, log in as that user before running Cribl. Alternatively, you can run  Cribl Stream as an `Administrator`.
+
+#### Capture the Memory Snapshot 
+
+To capture the memory snapshot:
+
+1. Note the PID of the process of interest.
+2. In a terminal, `cd` to the directory where  Cribl Stream is installed.
+    ```shell
+       cd $CRIBL_HOME/bin
+    ``` 
+3. Run the `diag heapsnapshot` command with the PID you noted in step 1.
+    
+  - For Linux:
+    ```shell
+       ./cribl diag heapsnapshot -p <pid>
+    ```
+##### Locate the PID on Windows 
+
+There are three methods to identify the Process ID (PID) for `cribl.exe`:
+
+1. **Task Manager**: Open the Task Manager application.  Locate the **Processes** tab and search for `cribl.exe` in the list. The PID will be displayed in the corresponding column.
+
+2. **Command Line Interface (CLI)**: Open a Command Prompt window. Run the following command:
+  ```shell
+      tasklist /FI "IMAGENAME eq cribl.exe"
+  ```
+This command will list all running processes. The line containing `cribl.exe` will also display the PID in the corresponding column (usually the second column).
+
+3. **PowerShell**: Open a PowerShell window. Run the following command:
+  ```shell
+      PowerShell
+      Get-Process -Name cribl
+  ```
+
+This command will list details about running processes. The output will include the PID for any process named `cribl`.
+
+Once you locate the PID, run the `diag heapsnapshot` command:
+1. Navigate to the Cribl Stream installation directory: For example, `C:\Program Files\Cribl\bin` or `$CRIBL_HOME\bin`. 
+2. Run the `diag heapsnapshot` command with the PID. 
+```shell
+      ./cribl diag heapsnapshot -p <pid>     
+  ```
+
+
+Cribl will capture the memory snapshot in `$CRIBL_HOME/diag/`.
+
+Example output:
+
+```shell
+Heap-1690906031148-2458958.heapsnapshot
+```
+
+

@@ -1,0 +1,137 @@
+# Manage Billing in FinOps Center
+
+
+Track your credit usage and billing across all Cribl products.
+
+---
+
+
+
+The Cribl FinOps Center is designed to simplify the process of tracking your
+product usage and credit consumption. You can also download
+finalized invoices and export them to external spend analysis products.
+
+For more information about Cribl.Cloud billing and pricing, 
+see our [Cribl Pricing](https://cribl.io/pricing/) page.
+
+## Access Your Billing Information
+
+The **FinOps Center** page is a single source of truth for 
+your Cribl.Cloud Organization billing and usage data. To access your credits usage and invoice: 
+
+- From the Cribl home page, select **Organization** from the sidebar, then select **FinOps Center**.
+
+- From within a product, select the top bar's **Products** button, then select **Cribl** > **Organization**. From the resulting sidebar, select **FinOps Center**. 
+
+![Organization sidebar menu](finops-org.png)
+{scale="25%"}
+
+On the **FinOps Center** page, you can:
+
+- Access, download, and export your invoices in CSV and JSON format.
+- Understand your billing data at a glance.
+
+## Explore the FinOps Center
+
+Select the **Usage Overview** tab for a holistic view.
+
+![Explore the Cribl FinOps Center](finops-center-explore-search.png)
+{scale="100%"}
+
+|Callout|Area|Description|
+|-------|----|-----------|
+|A      |**Total credits consumption**| View an overview of your credits for the current active contract. Twirl open the arrow to reveal a credit ledger, including any credits that rolled over from your last contract period.| 
+|B      |**Cumulative credit consumption**| View a column chart containing each month's credit consumption across all products.|
+|C      |**Contract renewal indicator**| The vertical grey line indicates the point at which your Cribl contract was renewed. Because credits are consumed on a per-contract basis, you might see a drop in consumed credits directly after the renewal indicator, even if it is mid-month.|
+|D      |**Date range**| Use the date range selector to view usage and credits consumed in a specific date and time period.|
+|E      |**Total acquired credits**| The horizontal red line indicates total acquired credits in relation to consumed credits, including refunds and rollovers.|
+|F      |**Monthly usage**| View a column chart containing monthly usage by product. Hover over each month to view details.|
+|G      |**Per product consumption**| Find detailed, per-product credit consumption information in this section. Expand a product name for the single product usage view.| 
+|H      |**Product usage summary**| View monthly usage for the expanded product.|
+|I      |**Sparklines** | View usage changes at-a-glance with the per-product sparkline chart.|  
+
+## Understand Your Monthly Invoice
+
+The monthly invoice offers details about the subscription quota and total compute costs
+you have incurred in the current and previous months, along with a cost item breakdown
+for more granularity.
+
+![Monthly invoice information](cloud-billing-search-invoice.png)
+{scale="100%"}
+
+To view your monthly Cribl invoice, make sure you’re logged in to your
+Cribl account and you’ve selected your Organization. 
+
+1. From the sidebar, select **FinOps Center**.
+1. The **Invoices** tab is where you’ll find your monthly invoices. 
+
+    - Each invoice is ordered by month, most recent to oldest.
+    - The invoice status will be **Draft** for the current month until your
+      billing period ends, as defined in your contract.
+    - You can download **Final** invoices as JSON or CSV using the ![](actions-dropdown.light.svg) menu.
+
+1. To view the details of each monthly invoice, select the plus [+] button. 
+
+Here, you’ll see the breakdown of credits consumed by product and infrastructure: 
+
+|<div style="width: 100px">Product</div>|Cost item|
+|-------|-------------------|
+|Cribl Search|<ul><li>Search Subscription (flat-rate pricing)</li><li>Search Total Compute (CPU x Hours)</li></ul>|
+|Cribl Lake|Cribl Lake Total Storage (dataset size volume per GB on an assumed 30 day data retention schedule)|
+|Cribl Stream|<ul><li>Cloud Worker Group Net Data Ingest</li><li>Hybrid Workers GBs Received</li><li>Connected Stream GB In (on-prem Leaders that are passing usage data to Cribl.Cloud)</li></ul>|
+|Cribl Edge|<ul><li>Edge Node GBs Ingress</li><li>Connected Edge GBs In</li></ul>|
+
+
+### Download Invoices
+
+You can download your monthly Cribl.Cloud invoices as CSV or JSON files.
+Then, use them in external tools to help with budget planning and analytics or
+store them for historical purposes.
+
+>You can only download invoices with a **Final** status. **Draft** invoices can't
+>be downloaded.
+{.box .success}
+
+To download an invoice:
+
+1. In the sidebar, select **Organization**, then **FinOps Center**.
+1. On the **FinOps Center** submenu, select **Invoices**.
+1. Hover over Actions ![](actions-dropdown.light.svg) for the invoice you want to download.
+1. Select **Download CSV** or **Download JSON**.
+
+## Frequently Asked Questions
+
+Here are answers to some common questions about usage and billing:
+
+### How Is Usage Calculated?
+
+For Cribl Search, your total spend equates to the amount of compute resources used to deliver search
+results. We charge in compute hours, but most searches take less than a second.
+
+For Cribl Lake, usage equates to the amount of compressed data stored.
+
+For Cribl Stream and Cribl Edge, your total spend equates to data ingest plus the infrastructure
+resources needed for processing your data. We charge on ingress, but you never pay for
+egress, so you can send your processed data to as many receivers as you’d like.
+
+### How Is Cost Calculated?
+
+In Cribl.Cloud, one credit equals one US dollar. Each of our four products 
+(Cribl Stream, Cribl Edge, Cribl Lake, Cribl Search) consumes credits at a different rate. 
+For a detailed explanation, see our [Cribl Pricing Guide](https://cribl.io/pricing/) or
+contact Cribl Sales.
+
+Here’s a quick summary of Cribl.Cloud credit consumption:
+
+|Product</div>|General Calculation|
+|-------|-------------------|
+| <div style="width: 100px"> Cribl Stream| <div style="width: 600px"> Ingest pricing (infrastructure pricing based on region): <ul><li>0.32 Credits/GB per Cloud Worker</li><li>0.26 Credits/GB per Hybrid Worker</li></ul>|
+|Cribl Edge|Ingest pricing: <ul><li>0.21 Credits/GB per Edge Node</li></ul>|
+|Cribl Search|Compute pricing: <ul><li>1 Credit per CPU hour</li></ul>If a Search is entirely satisfied by one or more Lakehouses, you are not billed Search CPU hours.|
+|Cribl Lake|Storage pricing based on 30-day retention: <ul><li>.05 Credits/GB if Cloud Worker is managed by Cribl</li><li>.02 Credits/BG if self-managed</li></ul>|
+|Lakehouse|[Lakehouse billing](https://cribl.io/pricing/lake/?product=lakehouse) begins as soon as Cribl provisions the Lakehouse, shortly after you select **Save**. You're billed based on how long the Lakehouse has run. Price per month depends on the Lakehouse capacity you purchased. For more details about Lakehouse provisioning, see our [Lakehouse](/lake/lakehouse) docs.|
+
+### How Often Is Credit Data Refreshed in Cribl.Cloud?
+
+Cribl.Cloud refreshes credit data every five minutes to provide you with the
+most accurate information about your usage and cost.

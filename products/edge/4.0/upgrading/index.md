@@ -1,0 +1,298 @@
+# Upgrading
+
+
+Teleporting an Edge installation into the future 
+
+---
+
+This page outlines how to upgrade a Cribl Edge
+[single-instance](deploy-single-instance) or
+[distributed deployment](setting-up-leader-and-edge-nodes) along one of the following
+supported upgrade paths, which apply to UI-based upgrades:
+
+| Current Version            | Upgrade Path                       |
+|----------------------------|------------------------------------|
+| 4.x                        | 4.x                                |
+| 3.x                        | 3.x through 4.x                    |
+| 2.x                        | 2.x through 4.x                    |
+| 1.7.x or 2.0.x             | 2.x.x, then 3.x or 4.x             |
+| 1.6.x or below             | 1.7.x, then 2.x.x, then 3.x or 4.x |
+
+> If you're upgrading Edge Nodes directly from the command-line interface, you
+> don't have to worry about a version upgrade path - there are no restrictions on
+> the versions you can upgrade to or from.
+>
+{.box .info}
+
+You can upgrade Cribl Edge in two ways:
+
+- [Upgrade and Rollbacks via the UI](#ui)
+- [Manual Upgrades and Rollbacks](#manual) allows you to upgrade by uncompressing the new version on top of the old one. 
+
+## Upgrading Considerations {upgrade-considerations}
+
+Here are some things to consider before you upgrade:
+
+- Cribl Edge does **not** support direct upgrades from any pre-GA version (such as
+  a Cribl-provided test candidate) to a GA version. To get the GA version running,
+  you must perform a new install. 
+
+- Before upgrading your Leader to v.4.0 and later, see
+  [Persisting Socket Connections](setting-up-leader-and-edge-nodes#socket), to
+  prepare the host to keep communications open from Workers. 
+
+- Cribl Edge 4.1 and later encrypt TLS certificate private key files when you
+  add or modify them. See instructions just below for backing up your keys from
+  earlier versions.
+
+- In Kubernetes, an Edge Node that is upgraded via the Leader reverts to its
+  helm chart image after restarting a pod. There might be a version mismatch with
+  the Leader as a result. Use the Helm Charts to upgrade the Edge Nodes on
+  Kuberbenetes: `helm upgrade --install`.
+
+## Safeguarding Unencrypted Private Keys for Rollback {#safeguarding}
+
+Cribl Edge 4.1 and later encrypt TLS certificate private key files when you add or modify them. 
+
+> Before upgrading from a pre-4.1 version, make a backup copy of all unencrypted TLS certificate private key files. Having access to the unencrypted files is essential if you later find that you need to roll back to your previous version.
+>
+{.box .warning}
+
+To safeguard your unencrypted private keys, make a full backup of all Cribl config files. Files in the `auth/certs` directory are particularly important, such as those in: 
+- `groups/default/local/cribl/auth/certs/`
+- `groups/<groupname>/local/cribl/auth/certs/`
+- `cribl/local/cribl/auth/certs/`
+- Etc.
+
+Take appropriate precautions to prevent unauthorized access to these unencrypted private key files. If you need to roll back to a pre-4.1 version, see [Restoring Unencrypted Private Keys](securing-and-monitoring#restoring). 
+
+## Upgrade and Rollback via the UI {#ui}
+
+> Currently, you can't upgrade **Windows** Edge Nodes via Cribl Edge's UI. You must re‑run a Windows installer on these Nodes to upgrade them. This Windows limitation also applies to the Rollback section below.
+>  
+> You can use the **Add/Update Edge Nodes** option in the UI, to generate an upgrade script for Windows. For details, see [Add/Update Edge Nodes](managing-edge-nodes##add-node).
+>
+{.box .info}
+
+To upgrade via the UI, go to **Settings** > **Global Settings** > **System** > **General Settings** > **Upgrade**. The following controls are available here:
+
+#### Package Source
+
+The default **CDN** button downloads a package directly from Cribl's content delivery network. Selecting the alternative **Path** button exposes these additional controls:
+
+  - **Package location**: Enter either a URL (HTTP) or a local path to the upgrade package. HTTP example: `https://cdn.cribl.io/dl/4.1.0/cribl-4.1.0-6979aea9-linux-x64.tgz`
+  - **Package hash location**: Enter either a URL (HTTP) or a local path to the hash that validates the package. Supports `sha256` and `md5` formats. You can simply append `.sha256` to the contents of the **Platform‑specific package location** field. HTTP example:  
+  `https://cdn.cribl.io/dl/4.1.0/cribl-4.1.0-6979aea9-linux-x64.tgz.sha256`
+  - **Save**/**Cancel** buttons: Click **Save** to store the specified locations. Clicking **Cancel** restores the **CDN** package-source selection.
+
+> You can add multiple rows to this table to specify packages for different platforms/architectures. To obtain the latest packages from https://cribl.io/download, use the drop-down list to specify each platform (e.g., x64 versus ARM). When you stage these packages on your own servers, preserve the original file names.
+>
+{.box .success}
+
+#### Automatic Upgrades {#automatic-upgrades}
+
+The **Disable automatic upgrades** slider defaults to `Yes` in on-prem/​customer-managed deployments, to prevent Edge from automatically upgrading out-of-date Worker Nodes. 
+
+The automatic upgrade process works like this: 
+
+1. The Leader pulls packages and checks their hashes.
+
+    * The Leader must (1) be able to connect to the path, and (2) have privileges to download the files.
+
+    * If the path is a file path, the Leader copies the files to a known location in its filesystem.
+
+2. Edge Nodes pull packages and check their hashes.
+
+    * Edge Nodes pull from the leader through HTTP, not directly from the Leader's filesystem.
+
+    * Each Edge Nodes pulls the package that is appropriate for that Node's platform and architecture. 
+
+3. Edge Nodes install the packages.
+
+### Upgrade/Upgrade Leader 
+
+In a [Single-instance deployment](#single), the **Upgrade** button is the only other control provided. In a [distributed deployment](#distributed), you have an additional option to upgrade **Fleets**. (As with manual upgrades, always upgrade the Leader before upgrading the Edge Nodes.)
+
+### Upgrade Fleets
+
+This second tab, displayed only in distributed deployments, shows each Fleet's status.
+
+
+
+> Upgrading Edge Nodes from the Leader requires a Standard or Enterprise [license](licensing).
+>
+{.box .info}
+
+Click any row's **Upgrade** button to upgrade that Fleet. The resulting **Upgrade Fleet** dialog offers two states: Basic Upgrade and Advanced Upgrade.
+
+#### Basic Upgrade Configuration
+
+In this default **Upgrade Fleet** dialog, you can simply upgrade the whole Fleet, by clicking the dialog's **Upgrade** button to confirm. 
+
+Cribl Edge will check to ensure that Edge Nodes are upgraded no higher than the Leader's version. Upgrades are performed as the user that was running Edge on each machine.
+
+#### Advanced Upgrade Configuration
+
+Click the dialog's gear (⚙️) button to expose these additional options:
+
+**Quantity %**: Specify what percentage of the Fleet's Edge Nodes to upgrade in this operation. If you enter a value less than the default `100`%, Edge will perform a partial upgrade, keeping the remaining Edge Nodes active to process data.
+
+**Rolling upgrade**: This option upgrades Edge Nodes in batches, each sized according to your **Quantity %** value. When enabled, this slider also enables the dialog's two remaining controls: 
+
+**Retry delay (ms)**: How many milliseconds to wait between upgrade attempts. Defaults to `1000` ms (1 second).
+
+**Retry count**: How many times to retry a failed upgrade. Defaults to `5`.
+
+After you click the **Upgrade** confirmation button, the **Fleet Upgrade** tab will display an additional button on this Fleet's row:
+
+**View**: Click to display the upgrade task's status in the Job Inspector modal – select that modal's **System** tab to access details.
+
+> When you initiate an upgrade via the UI, the new package is untarred to `$CRIBL_HOME/unpack.<random‑hash>.tmp`. This location inherits the permissions you've already assigned to `$CRIBL_HOME`.
+>
+{.box .info}
+
+### Backup and Rollback {#back}
+
+When you initiate an upgrade through the UI, Edge first stores a backup of your current stable deployment. If the upgrade fails, then by default, Edge will automatically roll back to the stored backup package. You can adjust this behavior at **Settings** > **Global Settings** > **System** > **General Settings** > **Upgrade & Share Settings**, using the following controls. 
+
+> Edge can perform rollbacks only on Nodes that were running at least v.3.0.0 before the attempted upgrade.
+>
+{.box .warning}
+
+**Enable automatic rollback**: Edge will automatically roll back an upgrade if the Edge server fails to start, or if the Worker Node fails to connect to the Leader. (Toggle to `No` to defeat this behavior.)
+
+**Rollback timeout (ms)**: Time to wait, after an upgrade, before checking each Node's health to determine whether to roll back. Defaults to `30000` milliseconds, i.e., 30 seconds.
+
+**Rollback condition retries**: Number of times to retry the health check before performing a rollback. Defaults to `5` attempts.
+
+**Check interval (ms)**: Time to wait between health-check retries. Defaults to `1000` milliseconds, i.e., 1 second.
+
+**Backups directory**: Specify where to store backups. Defaults to `$CRIBL_HOME/state/backups`.
+
+**Backup persistence**: A relative time expression specifying how long to keep backups after each upgrade. Defaults to `24h`.
+
+
+## Manual Upgrades and Rollbacks {#manual}
+
+### Standalone/Single-Instance {#single}
+
+This path requires upgrading only the single/standalone Node:
+
+1. Stop Edge. 
+
+2.  Download the package on your instance of choice [here](https://www.cribl.io/download).
+
+3. Uncompress the new version on top of the old one, e.g., in the `/opt/cribl-edge` directory: `tar xvzf cribl-<version>-<build>-<arch>.tgz`
+
+   On some Linux systems, `tar` might complain with: `cribl/bin/cribl: Cannot open: File exists`. In this case, please remove the `cribl/bin/cribl` directory if it's empty, and untar again. If you have **custom functions** in `cribl/bin/cribl`, please move them under `$CRIBL_HOME/local/cribl/functions/` before untarring again.
+
+4. Restart Edge.
+
+> For distributed environments with a [second Leader](deploy-add-second-leader) configured, the order of upgrade is: First upgrade the Primary Leader Node, then upgrade the Secondary Leader Node, then upgrade the Edge Nodes. 
+>
+{.box .info}
+
+###  Distributed Deployment  {#distributed}
+
+For a distributed deployment, the general order of upgrade is: First upgrade the Leader Node, then upgrade the Edge Nodes, then commit and deploy the changes on the Leader.
+
+> For distributed environments with a [second Leader](deploy-add-second-leader) configured, the order of upgrade is: First upgrade the Primary Leader Node, then upgrade the Secondary Leader Node, then upgrade the Edge Nodes. 
+>
+{.box .info}
+
+#### Upgrade the Leader Node
+
+1. Commit and deploy your desired last version. (This will be your most recent checkpoint.)
+
+   - Optionally, `git push` to your configured remote repo.
+
+2. Stop Cribl Edge. 
+
+   - Optional but recommended: Back up the entire `$CRIBL_HOME` directory.
+
+   - Optional: Check that the Edge Nodes are still functioning as expected. In the absence of the Leader Node, they should continue to work with their last deployed configurations. 
+
+3. Download the package on your instance of choice [here](https://www.cribl.io/download).
+
+4. Uncompress the new Edge version on top of the old one, e.g., in the `/opt/cribl-edge` directory: `tar xvzf cribl-<version>-<build>-<arch>.tgz`
+
+5. Restart Edge and log back in. 
+
+6. Wait for all the Edge Nodes to report to the Leader, and ensure that they are correctly reporting the last committed configuration version. 
+
+> Cribl Edge's UI will not be available until the Edge version has been upgraded to match the version on the Leader. Errors will appear until the Edge Nodes are upgraded.
+>
+{.box .info}
+
+#### Upgrade the Edge Nodes
+
+These are the same basic steps as when upgrading a [Single Instance](#single), above:
+
+1. Stop Cribl Edge on each Edge Node.
+
+2. Download the package on your instance of choice [here](https://www.cribl.io/download). If the Leader is on a prior release, see [Cribl Past Releases](https://cribl.io/download/past-releases/) for older packages. 
+
+3. Uncompress the new Edge version on top of the old one, e.g., in the `/opt/cribl-edge` directory: `tar xvzf cribl-<version>-<build>-<arch>.tgz`
+
+4. Restart Edge.
+
+### Commit and Deploy Changes from the Leader Node
+
+1. Ensure that newly upgraded Edge Nodes report to the Leader with their new software version. 
+
+2. Commit and deploy the newly updated configuration **only after all** Edge Nodes have upgraded.
+
+### Manual Rollback {#rollback}
+
+Using [CLI commands](cli-reference#command-syntax), it's possible to explicitly roll back an on-prem Leader, and Nodes, to an earlier release. This works much like an upgrade.
+
+Explicit rollback might be necessary if an [automatic rollback](#back) fails. Otherwise, Cribl recommends first considering other options – an upgrade, or working with Cribl Support – before a manual rollback. Rollback can encounter these complications:
+- Your current configuration might take advantage of dependencies not supported in an earlier release.
+- Do not manually roll back any Cribl Edge instance running in a container. Instead, locate, download, and launch a [container image](https://hub.docker.com/r/cribl/cribl/tags) hosting the earlier version you want.
+
+#### Rollback Outline {#rollback-outline}
+
+We assume that you are rolling back to a previously deployed version that you know to be stable in your environment. The broad steps are:
+
+1. Ideally, [link](/stream/version-control#remote-setup) your deployment to a Git remote repo, and [commit and push](/stream/version-control#pushing-to-a-remote-repo) your Leader's configuration to that remote. The repo will provide a stable location from which to restore your config, if necessary.
+
+2. Stop the Leader instance. (From `$CRIBL_HOME/bin/`, execute `./cribl stop`.)
+
+3. Also create a local backup of your Leader's whole `$CRIBL_HOME` directory.
+
+4. Obtain the installation package for the earlier release and platform you need. (See the [Rollback Example](#rollback-example).)
+
+5. [Uncompress](deploy-single-instance#install) the earlier version to your original deployed directory. You can do this from the command line or programmatically (see the [Rollback Example](#rollback-example)).
+
+    If installing to your existing target directory fails, try the same mitigations we list [above](#single) for upgrades.
+
+6. In a [distributed deployment](#distributed), Nodes must not run a higher version than the Leader. Repeat steps 2, 3, and 5 above on all Nodes, substituting “Node” for “Leader.” (On Nodes where you've integrated Cribl Edge with systemd, stop the Cribl server with: `systemctl stop cribl-edge`.)
+
+#### Rollback Example {#rollback-example}
+
+While rollbacks can be partially scripted, discovering earlier installation packages cannot be automated – the initial steps here are manual:
+
+1. Stop and back up the Leader. (Follow steps 1–3 in the [Rollback Outline](#rollback-outline).)
+
+1. Open the **Cribl Past Releases** page: https://cribl.io/download/past-releases/.
+
+1. Locate the earlier version that you want to restore.
+
+1. Use the adjacent drop-down to select your target platform.
+
+1. Right-click (or `Ctrl`-click) the corresponding **Download** button, and copy its URL to your clipboard. In this example, we've copied:  
+`https://cdn.cribl.io/dl/4.1.0/cribl-4.1.0-6979aea9-linux-arm64.tgz`
+
+1. Swap that URL into an untar command like the following. Run this command from the parent (typically `/opt/`) of your existing `$CRIBL_HOME` directory:  
+`[sudo] curl -Lso - https://cdn.cribl.io/dl/4.1.0/cribl-4.1.0-6979aea9-linux-arm64.tgz | tar zxv`
+
+1. Repeat the preceding steps to adjust all Nodes to a compatible version.
+
+
+## Upgrade Troubleshooting
+
+- Cribl Edge does **not** support direct upgrades from any pre-GA version (such as a Cribl-provided test candidate) to a GA version. To get the GA version running, you must perform a new install. 
+
+- If you’re upgrading to v.3.5.4 or later, all Edge Nodes will need to be on the same version as the Leader. Leaders running v.3.5.4 and later test whether Edge Nodes are running a compatible version before deploying configs that could break Nodes' data flow. The Leader will prompt you to upgrade these Nodes as needed..
+
+- Version 3.5.4 is also a compatibility breakpoint for the Cribl HTTP [Source](sources-cribl-http) and [Destination](destinations-cribl-http), and for the Cribl TCP [Source](sources-cribl-tcp) and [Destination](destinations-cribl-tcp). When running on Cribl Edge 3.5.4 and later, these two Sources can send data only to Workers running v.3.5.4 and later, and these two Destinations can receive data only from Nodes running v.3.5.4 and later. When running on Edge 3.5.3 and earlier, these four integrations can similarly interoperate only with Nodes running v.3.5.3 and earlier.

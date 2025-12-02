@@ -1,0 +1,19 @@
+# mode-edge
+
+
+Configures node as a Single-instance Cribl Edge deployment.
+
+**Usage:**
+
+```text
+./cribl mode-edge -d d0e301e4-f961-4f50-956a-5153224b34e3
+```
+
+**Arguments:**
+
+| Option | Definition |
+| ------ | ---------- |
+| `-d <deploymentId>` | Deployment ID for reporting telemetry on multiple deployments. |
+| `-H <host>` | Hostname/IP. Defaults to `127.0.0.1`. |
+| `-p <port>` | Port. Defaults to `9420`. |
+| `-s <socket>` | Location of the AppScope socket. |

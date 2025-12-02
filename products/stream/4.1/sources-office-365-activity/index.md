@@ -1,0 +1,225 @@
+# Office 365 Activity
+
+
+Cribl Stream supports receiving data from the [Office 365 Management Activity API](https://docs.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-reference). This facilitates analyzing actions and events on Microsoft Entra ID, Exchange, and SharePoint, along with global auditing and Data Loss Prevention data.
+
+> Type: **Pull**  |  TLS Support: **YES** | Event Breaker Support: **YES**
+>
+{.box .info}
+
+TLS is enabled via the HTTPS protocol on this Source's underlying REST API.
+
+## Microsoft Entra ID Permissions
+
+In Azure Active Directory, the application representing your Cribl Stream instance must be granted the following permissions to pull data. Each permission's **Type** must be `Application` – `Delegated` is not sufficient:
+
+
+- `ActivityFeed.Read` – Required for all Content Types except `DLP.All`.
+- `ActivityFeed.ReadDlp` – Required for the `DLP.All` Content Type.
+
+![Registered application permissions](ofc-365-activity-permissions.4c44fd790e.png)
+{border="true"}
+
+
+
+## Office 365 Subscriptions
+
+Cribl Stream does not support starting/stopping Office 365 subscriptions. You can start subscriptions either via another Office 365 API client, or simply via `curl` commands. We document the `curl` command method below in [Starting Content Subscriptions](#start-subscriptions).
+
+## Configuring Cribl Stream to Receive Data from the Activity API   
+
+From the top nav, click **Manage**, then select a **Worker Group** to configure. Next, you have two options:
+
+To configure via the graphical [QuickConnect](quickconnect) UI, click Routing > QuickConnect (Stream) or Collect (Edge). Next, click **Add Source** at left. From the resulting drawer's tiles, select [**Pull** > ] **Office 365**. Next, click either **Add Destination** or (if displayed) **Select Existing**. The resulting drawer will provide the options below.
+ 
+Or, to configure via the [Routing](routes) UI, click **Data** > **Sources** (Stream) or **More** > **Sources** (Edge). From the resulting page's tiles or left nav, select [**Pull** > ] *Office 365**. Next, click **New Source** to open a **New Source** modal that provides the options below.
+
+### General Settings
+
+**Input ID**: Enter a unique name to identify this Office 365 Activity definition.
+
+**Tenant ID**: Enter the Office 365 Azure tenant ID.
+
+**App ID**: Enter the Office 365 Azure application ID.
+
+**Subscription Plan**: Select the Office 365 subscription plan for your organization. This is typically `Enterprise` or `GCC Government Plan`.
+
+### Authentication Settings
+
+**Authentication method**: Select one of the following buttons.
+ - **Manual**: This default option provides a **Client secret** field, where you directly enter the required Office 365 Azure client secret.
+ - **Secret**: This option instead exposes a **Client secret (text secret)** drop-down, from which you select a stored text secret to authenticate with. Click **Create** to configure a new secret.
+
+### Optional Settings
+
+**Publisher identifier**: Use in API requests as described [here](https://docs.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-reference#start-a-subscription). If not defined, defaults to Microsoft Office 365 tenant ID.
+
+**Content Types**: See the [Content Types](#content-types) section below.
+
+**Tags**: Optionally, add tags that you can use for filtering and grouping in Cribl Stream. Use a tab or hard return between (arbitrary) tag names.
+
+#### Content Types {#content-types}
+
+Here, you can configure polling independently for the following types of audit data from the Office 365 Management Activity API:
+
+* **Active Directory**
+* **Exchange**
+* **SharePoint**
+* **General**: All workloads not included in the above content types
+* **DLP.All**: Data Loss Prevention events only, for all workloads
+   
+For each of these content types, the **Content Types** table provides the following controls:
+
+**Interval Description**: This column is informational only.
+
+**Interval**: Optionally, override the default polling interval. See [About Polling Intervals](#intervals) below.
+
+**Log Level**: Set the verbosity level to one of `debug`, `info` (the default), `warn`, or `error`.
+
+**Enabled**: Toggle this to `Yes` for each service that you want to poll.
+
+##### About Polling Intervals {#intervals}
+
+To poll the Office 365 Management Activity API, Cribl Stream uses the **Interval** field's value to establish the search date range and the cron schedule (e.g.: `*/${interval} * * * *`).
+
+Therefore, intervals set in minutes must divide evenly into 60 minutes to create a predictable schedule. Dividing 60 by intervals like `1`, `2`, `3`, `4`, `5`, `6`, `10`, `12`, `15`, `20`, or `60` itself yields an integer, so you can enter any of these values. 
+
+Cribl Stream will reject intervals like `23`, `42`, or `45`, or `75` – which would yield non-integer results, meaning unpredictable schedules.
+
+### Processing Settings
+
+#### Fields 
+
+In this section, you can add Fields to each event, using [Eval](eval-function)-like functionality. 
+
+**Name**: Field name.
+
+**Value**: JavaScript expression to compute field's value, enclosed in quotes or backticks. (Can evaluate to a constant.)
+
+#### Pre-Processing
+
+In this section's **Pipeline** drop-down list, you can select a single existing Pipeline to process data from this input before the data is sent through the Routes.
+
+### Advanced Settings
+
+**Keep Alive Time (seconds)**: How often Workers should check in with the scheduler to keep their job subscription alive. Defaults to `60`.
+
+**Worker timeout (periods)**: The number of Keep Alive Time periods before an inactive Worker will have its job subscription revoked. Defaults to `3`.
+
+**Timeout (secs)**: The maximum time period for an HTTP request to complete before Cribl Stream treats it as timed out. Defaults to `300` (i.e., 5 minutes). Enter `0` to disable timeout metering.
+
+**Environment**: If you're using GitOps, optionally use this field to specify a single Git branch on which to enable this configuration. If empty, the config will be enabled everywhere.
+
+## Internal Fields
+
+Cribl Stream uses a set of internal fields to assist in handling of data. These "meta" fields are **not** part of an event, but they are accessible, and [Functions](functions) can use them to make processing decisions.
+
+Fields for this Source:
+
+  * `__final`
+  * `__inputId`
+  * `__isBroken`
+  * `__source`
+
+##  Starting Content Subscriptions  {#start-subscriptions}
+
+Content subscriptions (a different concept from the O365 subscription plans) are required in order for Cribl Stream to be able to begin retrieving O365 data. There is a separate subscription required for each Content Type. If you are using an existing Azure-registered application ID that already has subscriptions started, then you can ignore this section. But if you are:
+
+- Using a newly registered application ID, and therefore never had any subscriptions started, or 
+- Reusing an application ID that had subscriptions started, but are currently stopped
+
+...then you will need to use this procedure to manually start the necessary subscriptions. Follow either of the two methods below, using (respectively) PowerShell or `curl`.
+
+### Using PowerShell
+
+This sample PowerShell script will enable all subscriptions for you. Update the appropriate variables as required:
+
+```shell
+# Create app of type Web app / API in Microsoft Entra ID, generate a Client Secret, and update the client id and client secret here
+# Get the tenant GUID from Properties | Directory ID under the Microsoft Entra ID section.
+$AppID = "<APP_ID>"
+$ClientSecret = "<CLIENT_SECRET>"
+$TenantID = "<TENANT_ID>"
+$loginURL = "https://login.microsoftonline.com/"
+
+# For $resource, use one of these endpoint values based on your subscription plan:
+# * Enterprise - manage.office.com
+# * GCC - manage-gcc.office.com
+# * GCC High - manage.office365.us
+# * DoD - manage.protection.apps.mil
+$resource = "https://manage.office.com"
+
+$body = @{grant_type="client_credentials";resource=$resource;client_id=$AppID;client_secret=$ClientSecret}
+$oauth = Invoke-RestMethod -Method Post -Uri $loginURL/$TenantID/oauth2/token?api-version=1.0 -Body $body
+$headerParams = @{'Authorization'="$($oauth.token_type) $($oauth.access_token)"}
+
+Invoke-WebRequest -Headers $headerParams -Uri "$resource/api/v1.0/$TenantID/activity/feed/subscriptions/list"
+
+Invoke-WebRequest -Method Post -Headers $headerParams -Uri "$resource/api/v1.0/$TenantID/activity/feed/subscriptions/start?contentType=Audit.AzureActiveDirectory"
+Invoke-WebRequest -Method Post -Headers $headerParams -Uri "$resource/api/v1.0/$TenantID/activity/feed/subscriptions/start?contentType=Audit.Exchange"
+Invoke-WebRequest -Method Post -Headers $headerParams -Uri "$resource/api/v1.0/$TenantID/activity/feed/subscriptions/start?contentType=Audit.SharePoint"
+Invoke-WebRequest -Method Post -Headers $headerParams -Uri "$resource/api/v1.0/$TenantID/activity/feed/subscriptions/start?contentType=Audit.General"
+Invoke-WebRequest -Method Post -Headers $headerParams -Uri "$resource/api/v1.0/$TenantID/activity/feed/subscriptions/start?contentType=DLP.All"
+```
+
+### Using curl
+
+This is a two-step process. The first command obtains an auth token, which is used in the second command to actually start the subscription. To execute these commands, you'll need the same information (i.e., client secret, application ID, and tenant ID) that you already require to configure this Source in Cribl Stream's GUI. Replace those three variables as appropriate in the commands below.
+
+1. `curl -d "client_secret=<client secret>&resource=https://manage.office.com&client_id=<app id>&grant_type=client_credentials" -X POST https://login.windows.net/<tenant id>/oauth2/token`
+
+2. `curl -d "" -H "Authorization: Bearer <access token>" -X POST https://manage.office.com/api/v1.0/<tenant id>/activity/feed/subscriptions/start?contentType=<content_type_name>`
+
+Here is an example of each command executed and expected output:
+
+#### Example Command #1
+
+`$ curl -d "client_secret=abcdefghijklmnopqrstuvwxyz12345678&resource=https://manage.office.com&client_id=00000000-ffff-ffff-ffff-aaaaaaaaaaaa&grant_type=client_credentials" -X POST https://login.windows.net/12345678-aaaa-4233-cccc-160c6c30154a/oauth2/token`
+
+##### Output:
+
+`{"token_type":"Bearer","expires_in":"3599","ext_expires_in":"3599","expires_on":"1622089429","not_before":"1622085529","resource":"https://manage.office.com","access_token":"eyJ0...long JWT here...MRDvw"}`
+
+#### Example Command #2
+
+`$ curl -d "" -H "Authorization: Bearer eyJ0...long JWT here...MRDvw" -X POST "https://manage.office.com/api/v1.0/12345678-aaaa-4233-cccc-160c6c30154a/activity/feed/subscriptions/start?contentType=Audit.AzureActiveDirectory"`
+
+##### Output:
+
+`{"contentType":"Audit.AzureActiveDirectory","status":"enabled","webhook":null}`
+
+Note there is no output when executing this second command with a `stop` operation.
+
+You'll need to execute the second command for each Content Type whose logs you wish to collect. Use the exact strings below to specify Content Types in that command:
+
+- `Audit.AzureActiveDirectory`
+- `Audit.Exchange`
+- `Audit.SharePoint`
+- `Audit.General`
+- `DLP.All`
+
+## How Cribl Stream Pulls Data
+
+The Office 365 Activity Source retrieves data using Cribl Stream [scheduled Collection jobs](collectors#scheduled), which include Discover and Collection phases. The Discover phase task returns the URL of the content to collect.
+
+In the Source's **General Settings** > **Content Types** > **Interval** column, you configure the polling schedule for each Content Type independently. Each Content Type that you enable gets its own separate scheduled job.
+
+The job scheduler spreads the Collection tasks across all available Workers. The collected content is paginated, so the collection phase might include multiple calls to fetch data.
+
+## Viewing Scheduled Jobs
+
+Once you've configured and saved the Source, you can view the Collection jobs' results by reopening the Source's config modal and clicking its **Job Inspector** tab.
+
+Each content type that you enabled gets its own separate scheduled job.
+
+You can also view these jobs (among scheduled jobs for other Collectors and Sources) in the **Monitoring** > **System** > **Job Inspector** > **Currently Scheduled** tab.
+
+## Proxying Requests
+
+If you need to proxy HTTP/S requests, see [System Proxy Configuration](proxy-config).
+
+## Retry Logic
+
+If this Source receives an  HTTP `429` response code, and the `retry-after` [header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After) is present, Cribl Stream will use the header's `delay-seconds` or `http-date` value to determine how long to wait before retrying the request. Cribl Stream will log a warning message with the value retrieved from the header. 
+
+If the `retry-after` header is absent, Cribl Stream will make five retries, using a backoff algorithm, at the following intervals (in milliseconds): `200`, `400`, `800`, `1600`, `3200`.

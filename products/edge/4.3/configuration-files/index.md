@@ -1,0 +1,94 @@
+# Config Files
+
+
+---
+
+## Understanding Configuration Paths and Files 
+
+Even though all Cribl Edge Routes, Pipelines, and Functions can be managed from the UI, it's important to understand how the configuration works under the hood. Here is how configuration paths and files are laid out on the filesystem.
+
+
+
+Path Placeholder | Expanded Path
+--- | ---
+`$CRIBL_HOME` | Standalone Install: <br/>`/path/to/install/cribl/` – referred to <br/>below as `$CRIBL_HOME`<br/><br/>Cribl App for Splunk Install:<br/>`$SPLUNK_HOME/etc/apps/cribl/`
+
+All paths below are relative to `$CRIBL_HOME` in a [single-instance deployment](deploy-single-instance), or to `$CRIBL_HOME/groups/<group‑name>/` in a [distributed deployment](/stream/deploy-distributed).
+
+
+Category | Relative Path
+--- | ---
+**Default Configurations**<br/>Out-of-the-box defaults (rewritable) and libraries (expandable) | `default/cribl`
+**Local Configurations**<br/>User-created integrations and resources | `local/cribl`
+**System Configuration** | `(default\|local)/cribl/cribl.yml`<br/>See [cribl.yml](criblyml)
+**API Configuration** | `(default\|local)/cribl/cribl.yml` > `[api]` section<br/>See [cribl.yml](criblyml)
+**Source Configuration** | `(default\|local)/cribl/inputs.yml`<br/>See [inputs.yml](inputsyml)
+**Destination Configuration** | `(default\|local)/cribl/outputs.yml`<br/>See [outputs.yml](outputsyml)
+**License Configuration** | `(default\|local)/cribl/licenses.yml`
+**Regexes Configuration** | `(default\|local)/cribl/regexes.yml`
+**Breakers Configuration** | `(default\|local)/cribl/breakers.yml`
+**Limits Configuration** | `(default\|local)/cribl/limits.yml`
+**Service Processes Configuration** | `(default\|local)/cribl/service.yml`<br/>See [service.yml](serviceyml)
+**Pipelines Configuration**  | `(default\|local)/cribl/pipelines/<pipeline_name>`<br/>Each Pipeline's config resides within its subdirectory.
+**Packs Configuration**  | `default/<pack_name>`<br/>Each Pack's code and config reside within its subdirectory.
+**Routes Configuration**  | `(default\|local)/cribl/pipelines/routes.yml`
+**Functions**  | `(default\|local)/cribl/functions/<function_name>`<br/>Each Function's code resides within its subdirectory.
+**Functions Configuration** | `(default\|local)/cribl/functions/<function_name>/...`<br/>Each Function's config resides within its subdirectory.
+**Roles Configuration** | `(default\|local)/cribl/roles.yml`<br/>RBAC Role definitions. See [roles.yml](rolesyml).
+**Policies Configuration** | `(default\|local)/cribl/policies.yml`<br/>RBAC Policy definitions. See [policies.yml](policiesyml).
+**Permissions Configuration** | `(default\|local)/cribl/perms.yml`<br/>User permissions. See [perms.yml](permsyml).
+**Secrets Configuration** | `(default\|local)/cribl/secrets.yml`<br/>Cribl Edge secrets. See [secrets.yml](secretsyml).
+
+## Configurations and Restart {#restart}
+
+> You can **Restart** and **Reload** via the UI. On the top nav, go to **Settings** > **Global Settings** > **System** > **Controls** then click on the **Reload** button or the **Restart** button. 
+>
+{.box .info}
+
+In a distributed environment, Edge Nodes poll the Leader for configuration changes. Many of these changes require a quick reload to read the new configuration, while others require a restart of the Cribl processes on the Edge Node.
+
+On restarts, be aware of the following:
+- Data in process of being received on Syslog/UDP might be dropped. 
+- Edge Nodes  will temporarily disappear from the Leader’s Manage/Edge Node page.
+- Aggregations and suppressions will start over.
+- The local copy of monitoring metrics on the Edge Nodes, before the restart, will be dropped.
+- Any events in RAM for persistent queue (PQ) will be lost. PQ data on disk will persist.
+
+Changes that require reloads include configuration changes to: 
+- Functions
+- Pipelines
+- Packs
+- Routes
+- Lookups
+- Parquet schemas
+- Global variables
+- Group Settings: Limits and Logging Levels
+
+Changes that require restarts include configuration changes to: 
+- Mode of operation (Leader, distributed Edge Node, Single-instance)
+- Fleet assignment
+- Event Breakers
+- Quick Connects
+- Sources
+- Destinations
+- Group Settings: Advanced Settings, TLS
+- Group Settings: Worker Processes - Process Count/Memory
+
+Some general guidelines to keep in mind: 
+
+* Configuration changes resulting from most UI interactions – for instance, changing the order of Functions in a Pipeline, or changing the order of Routes – **do not require restarts**.
+* Some configuration changes in the **Settings** UI **do require restarts**. You will be prompted to confirm before restarting.
+* All direct edits of configuration files in `(bin|local|default)/cribl/...` **will require restarts**. 
+* Edge Nodes might temporarily disappear from the Leader's **Workers** tab while restarting.
+* A `git commit` command on the Leader Node's host (using a freestanding `git` client not embedded in Cribl's CLI or UI) **will require either a reload or restart**. 
+* When using the [Cribl App for Splunk](/stream/deploy-splunkapp), changes to Splunk configuration files might or might not require restarts. Please check current [Splunk docs](http://docs.splunk.com).  
+
+## Configuration Layering and Precedence
+
+Similar to most *nix systems, Cribl configurations in `local` take precedence over those in `default`. There is no layering of configuration files.
+
+> ##### Editing Configuration Files Manually
+>
+> When config files **must** be edited manually, save all changes in `local`.
+>
+{.box .warning}

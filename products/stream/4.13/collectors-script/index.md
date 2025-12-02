@@ -1,0 +1,178 @@
+# Script Collector
+
+
+Cribl Stream supports flexible data collection configured by your custom scripts. 
+
+> In Cribl.Cloud, the Script Collector is only available on customer-managed [hybrid](cloud-enterprise#hybrid) Worker Nodes.
+{.box .cloud}
+
+## How the Collector Pulls Data
+
+When you run a Script Collector in Discovery mode, the first available Worker returns one line of data per discovered item. Each item (line) turns into a Collection task on the Leader Node.
+
+In Full Run mode, the Leader passes the item to collect into the script in the `$CRIBL_COLLECT_ARG` variable, and spreads collection across all available Workers.
+
+If you run the Script Collector with a given [Time Range](collectors-schedule-run#time-range), the `earliest` and `latest` values will be available to the script via the environment variables `EARLIEST` and `LATEST`, respectively. 
+
+## Important: Secure and Use the Script Collector Properly {#securing-script-collector}
+
+Be aware that scripts will allow you to execute almost anything on the system where Cribl Stream is running. Make sure you understand the impact of what you're executing before you do so. These scripts run with the same level of permissions as the user running Cribl Stream. So, if you are running it as `root`, these commands will run with root user permissions. If your system requires greater security, consider disabling the Script Collector. See [How to Disable the Script Collector](#disable-script-collector) for more information.
+
+Also, always validate and test your scripts before running them on your system. Scripts must finish on their own. The Collector will not stop a script once its task has started. You must ensure scripts do not use infinite loops.
+
+## Configure a Script Collector 
+
+1. Navigate to **Products** > **Stream** > **Worker Groups**. Select a Worker Group, then go to **Data** > **Sources**. Choose the Source and select **Add Collector**. 
+2. In the **New Collector** modal, configure the following under **Collector Settings**:
+   - **Collector ID**: Unique ID for this Collector. E.g., `sh2GetStuff`. If you clone this Collector, Cribl Stream will add `-CLONE` to the original **Collector ID**.
+   - **Discover script**: Script to [discover](collectors-schedule-run#discovery) which objects/files to collect. This script should output one task per line in `stdout`. Discovery is especially important in a [distributed deployment](/stream/deploy-distributed), where the Leader must track all tasks, and must guarantee that each is run by a single Worker. See [Examples](#examples) below.
+   - **Collect script**: Script to perform data collections. Pass in tasks from the Discover script as `$CRIBL_COLLECT_ARG`. Should output results to `stdout`.
+3. Next, you can configure the following **Optional Settings**: 
+   - **Shell**: Shell in which to execute scripts. Defaults to `/bin/bash`.
+   - **Tags**: Optionally, add tags that you can use to filter and group Sources in Cribl Stream's **Manage Sources** page. These tags aren't added to processed events. Use a tab or hard return between (arbitrary) tag names.
+4. Optionally, configure any [Result](#result-settings), [Result Routing](#result-routing), and [Advanced](#advanced-settings) settings outlined in the sections below.
+5. Select **Save**, then **Commit & Deploy**. 
+6. To verify that the Collector actually collects data, you can start a single run
+in the [Preview](/stream/collectors-schedule-run#mode/) mode.
+
+> The sections described below are spread across several tabs. Click the tab links at left to navigate among tabs.
+> 
+> Collector Sources currently cannot be selected or enabled in the QuickConnect UI.
+>
+{.box .info}
+
+### Result Settings {#result-settings}
+
+The Result Settings determine how Cribl Stream transforms and routes the collected data.
+
+#### Custom Command
+
+In this section, you can pass the data from this input to an external command for processing, before the data continues downstream.
+
+- **Enabled**: Defaults to toggled off. Toggle on to enable the custom command.
+- **Command**: Enter the command that will consume the data (via `stdin`) and will process its output (via `stdout`).
+- **Arguments**: Click **Add Argument** to add each argument to the command. You can drag arguments vertically to resequence them.
+
+#### Event Breakers
+
+In this section, you can apply event breaking rules to convert data streams to discrete events.
+
+**Event Breaker rulesets**: A list of event breaking rulesets that will be applied, in order, to the input data stream. Defaults to `System Default Rule`.
+
+**Event Breaker buffer timeout**: How long (in milliseconds) the Event Breaker will wait for new data to be sent to a specific channel, before flushing out the data stream, as-is, to the Routes. Minimum `10` ms, default `10000` (10 sec), maximum `43200000` (12 hours).
+
+#### Fields 
+
+[Snippet not found: content/shared/4.13/snippets/_sources-add-fields.md]
+
+#### Result Routing {#result-routing}
+
+**Send to Routes**: Toggle on (default) if you want Cribl Stream to send events to normal routing and event processing. Toggle off to select a specific Pipeline/Destination combination. Toggling off exposes these two additional fields:
+- **Pipeline**:  Select a Pipeline to process results.
+- **Destination**: Select a Destination to receive results.
+
+Toggling on (default) exposes this field:
+- **Pre-processing Pipeline**: Pipeline to process results before sending to Routes. Optional.
+
+This field is always exposed:
+- **Throttling**: Rate (in bytes per second) to throttle while writing to an output. Also takes values with multiple-byte units, such as `KB`, `MB`, `GB`, etc. (Example: `42 MB`.) Default value of `0` indicates no throttling.
+
+> You might toggle **Send to Routes** off when configuring a Collector that will connect data from a specific Source to a specific Pipeline and Destination. This keeps the Collector's configuration self‑contained and separate from Cribl Stream's routing table for live data – potentially simplifying the Routes structure.
+>
+{.box .info}
+
+### Advanced Settings {#advanced-settings}
+
+Advanced Settings enable you to customize post-processing and administrative options.
+
+- **Environment**: If you're using GitOps, optionally use this field to specify a single Git branch on which to enable this configuration. If empty, the config will be enabled everywhere.
+- **Time to live**: How long to keep the job's artifacts on disk after job completion. This also affects how long a job is listed in **Job Inspector**. Defaults to `4h`.
+- **Remove Discover fields** : List of fields to remove from the Discover results. This is useful when discovery returns sensitive fields that should not be exposed in the Jobs user interface. You can specify wildcards (such as `aws*`).
+- **Resume job on boot**: Toggle on to resume ad hoc collection jobs if Cribl Stream restarts during the jobs' execution.
+
+## How the Collector Pulls Data
+
+In the Discover phase, the first available Worker returns one line of data per item discovered. Each item line turns into a Collect task on the Leader Node. In the Collect phase, the items to collect are passed into the script as the variable `$CRIBL_COLLECT_ARG`, and are spread across all available Workers.
+
+
+
+## Internal Fields {#internal-fields}
+
+Cribl Stream uses a set of internal fields to assist in data handling. These "meta" fields are **not** part of an event, but they are accessible, and you can use them in [Functions](functions) to make processing decisions.
+
+Relevant fields for this Collector:
+
+* `__collectible` – This object's nested fields contain metadata about each collection job.
+  * `collectorType`: Indicates the type of Collector used for the job.
+  * `collectorId`: Represents the **Collector ID** of the Collector, as configured during setup.
+* `__inputId` – Uniquely identifies the origin of data for a [collection job](collectors-schedule-run). Its format varies depending on whether the job is ad hoc or scheduled:
+  * Ad hoc jobs are formatted as `collection:<timestamp>.<randomId>.adhoc.<Collector ID>`.
+    * `<timestamp>`: The Unix timestamp when the job was initiated.
+    * `<randomId>`: A random identifier to ensure uniqueness.
+    * `adhoc`: Indicates the job was manually triggered.
+    * `<Collector ID>`: The ID of the Collector.
+  * Scheduled jobs are formatted as `collection:<Collector ID>`.
+    * `<Collector ID>`: The ID of the Collector.
+
+## Examples
+
+### Telemetry Collector
+
+You could define this Collector to check for Cribl Stream telemetry errors, which could cause license validation to fail, eventually (after a [delay](licensing#telemetry-data)) blocking data input.
+
+**Collector type**: `Script`
+
+**Discover script**: `ls $CRIBL_HOME/log/cribl*`
+
+**Collect script**: `grep 'Failed to send anonymized telemetry metadata' $CRIBL_COLLECT_ARG`
+
+### S3 Collector
+
+In this example, the Discover script retrieves file names from a specified Amazon S3 bucket, and then writes them (one per line) to the standard output. The Collect script processes each line as its `$CRIBL_COLLECT_ARG`, and uses `zcat` to decompress the buckets' data.
+
+**Collector type**: `Script`
+
+**Discover script**:  
+`aws s3api list-objects --bucket <bucket-name> --prefix <subfolder>/ --query 'Contents[].Key' --output text`
+
+**Collect script**: `aws s3 cp s3://<bucket-name>/$CRIBL_COLLECT_ARG - | zcat ‑f`
+
+### Simple Collector
+
+This example essentially spoofs the Discover script with an `echo` command, which simply announces what the Collect script (itself simple) will do.
+
+**Collector type**: `Script`
+
+**Discover script**: `echo "speedtest"`
+
+**Collect script**: `speedtest --json`
+
+## How to Disable the Script Collector {#disable-script-collector}
+
+You can disable the Script Collector if your organization's security policy prevents you from executing deliberate code on your remote nodes. Disabling the Script Collector is done using the Cribl command-line interface (CLI) to prevent potential bad actors from enabling the Script Collector through the API. See [Secure and Use the Script Collector Properly](#securing-script-collector) for more information about the potential security risks.
+
+> Disable the Script Collector with caution. Disabling the Script Collector is not easily reversible. Restoring the Script Collector after disabling it requires a full re-installation of Cribl Stream.
+>
+{.box .danger}
+
+To fully disable the Script Collector in your entire instance of Cribl Stream:
+
+1. Inside the Cribl CLI, navigate to the root directory of your Cribl instance.
+
+1. Run the following command:
+
+   ~~~bash
+   opt/cribl/bin/cribl limits -c 0
+   ~~~
+
+   > If your deployment is configured to use failover and relies on environment variables for that configuration, ensure you also include the following flag: `-d ABSOLUTE/FAILOVER/PATH`.
+   >
+   {.box .info}
+
+1. Restart Cribl Stream.
+
+1. Inside Cribl Stream, verify that you have disabled the Script Collector. Navigate to **Products** > **Stream** > **Worker Groups**. Select a Worker Group, then go to **Data** > **Sources**. Verify that the Script Collector does not show up in the list of Sources.
+
+1. Commit and deploy your changes to disable the Script Collector for all Worker Nodes.
+
+If you create future Groups after running this procedure, they will not include the Script Collector.

@@ -1,0 +1,370 @@
+# Exploring Cribl Edge on Linux
+
+
+The Cribl Edge UI offers a centralized view to manage, configure, and version–control your Edge Nodes. It also endows you with [teleport–to–the–edge](#teleport) superpowers for locally previewing and validating your configurations. Here's a quick tour of the Cribl Edge UI in distributed mode.
+
+## Accessing Cribl Edge  
+
+When you first log into Cribl Stream/Edge (single-instance or distributed), you'll see tiles that prompt you to choose between ~~two roads diverging in a yellow wood~~ the Stream versus Edge UIs. The Edge tile displays basic configuration details, including the number of Fleets, Subfleets, Edge Nodes, and events and bytes over time. Click **Manage** to start.
+
+![Manage Edge](managed_edge_landing.4f11c1cdf5.png)
+{border="true"}
+
+## Fleets Overview  
+
+On the Cribl Edge **Home** tab, you can access your configured Fleets and a summary of your Cribl Edge environment, highlighting the aggregate data for all Fleets, Subfleets, Edge Nodes, and Mappings. The charts display information about traffic in and out of the system. 
+
+![Cribl Edge Homepage](ed-edge_home.5e781321cd.png)
+{border="true"}
+
+Select **Manage** from the top nav to view the **Fleets Landing** page. Here you can access the tabs for more information about your **Fleets** (and **Subfleets**), **Edge Nodes**, **Mappings**, [**Notifications**](notifications), and **Logs**.
+
+![Manage Fleets](ed-fleet_all.eceaf7be87.png)
+{border="true"}
+
+The **Manage Fleets** page gives you access to more information about your **Fleets** (and **Subfleets**), **Edge Nodes**, **Mappings**, [**Notifications**](notifications), and **Logs**.
+
+You can click a **Fleet** link to isolate individual Fleets, or use the **Search** bar to locate your Fleet.   
+
+## Fleet Landing Page 
+
+![Fleet Landing page](ed_edge_fleet_landing.6d95cbcc21.png)
+{border="true"}
+
+The Fleet's landing page highlights information about your configured Edge Nodes. The following information is displayed across the top.
+
+**Number of Edge Nodes**: How many Edge Nodes are configured in this Fleet. 
+
+**Events In**: Total number of Events in the last 5 minutes of data collected. You can change the display's granularity from the default ` last 5 min`, selecting a variety of time ranges from 1 min up to 1 day. (The latter covers the preceding 24 hours, and this maximum window is not configurable.)
+
+**Bytes In**: The uncompressed amount of data in the last 5 minutes of data collected. You can change the display's granularity from the default ` last 5 min`, selecting from a variety of time ranges from 1 min up to 1 day. (The latter covers the preceding 24 hours, and this maximum window is not configurable.)
+
+**Sources**: List of configured Sources.
+
+**Destinations**: List of configured Destinations.
+
+Select the **Fleet** dropdown (top right) to see a hierarchical list of all your Fleets and Subfleets.
+
+![Fleets and SubFleets list](ed-fleet-dropdown.cc48a59293.png)
+{border="true"}
+
+### Fleet Map View 
+
+**Map View**: Here, a query builder allows you to display metrics from the Edge Nodes in the Fleet. You can select from different aggregations in the **Chart** field, different metrics in the **Measure** field, and the time window in the **During** field. 
+
+The metrics that appear in the **Measure** list depend on the option selected in **Fleet Settings** > **Limits** > **Metrics** under **Metrics to send from Edge Nodes**. The metrics `total.in_bytes`, `total.in_events`, `total.out_bytes`, and `total.out_events` always appear in the list; the display of any other metrics depends on what the Edge Nodes are sending to the Leader. To learn more about these metrics options, see [Controlling Metrics](internal-metrics#controlling-metrics).
+
+A hexagon-based map view displays the resulting metric combination for each of your Edge Nodes. Hovering over on one of the hexagons displays the Edge Node's **GUID**.
+
+![View Edge Node](ed-hex-nodes.501d5085d3.png)
+{border="true"}
+
+Clicking any of the hexagons displays a modal providing details on the Edge Node, similar to [teleporting](#teleport) into it, with the option to **Restart** the host. The **System Activity** tab displays details about the host's CPU, memory, network, and disk operations.
+
+![Edge Node System Activity](ed-edge-system-activity.b6ad751e51.png)
+{border="true"}
+
+The **Data Activity** tab offers a view into the data flowing through the Edge Node.
+
+![Edge Node Data Activity](ed-edge-data-activity.1b3b944f50.png)
+{border="true"}
+
+The **Node Info** tab offers Host/OS level information with a snapshot of the latest Heartbeat captured.
+
+![Edge Node info](ed-edge-node-info.9df224e5cb.png)
+{border="true"}
+
+### Fleet List View 
+
+The **List View** tab displays a list of all the systems in the Fleet. This also serves as the "transporter room," allowing you to [teleport](#teleport) into each of the Node's interfaces. 
+
+![Edge Node list view](ed-edge-list-view.83992b71ac.png)
+{border="true"}
+
+Click anywhere on a row to display a quick snapshot of the Edge Node's details, with an option to **Restart** the host.
+
+
+### Teleport into an Edge Node {#teleport}
+
+Click the **Edge Node GUID** link to teleport from the Leader into the Edge Node. Here, you can explore the metrics and log data that the Node has autodiscovered, and can manually discover and explore other data of interest. You can use the discovered data to perform root-cause analysis, to troubleshoot, and to restart the host. 
+
+The page displays metadata for the Node, and below it, graphs of system activity. A magenta border indicates you are remotely viewing a host, and identifies the host's name. 
+
+Click **Restart Edge** to restart the Node. To return to the **Manage Edge Nodes** page, click the **X** close button on the upper right.
+
+![Teleporting into an Edge Node](ed-teleport-node.4cf3e55509.png)
+{border="true"}
+
+> Changes that you make on an Edge Node will not propagate to the Leader. Also, the Leader will override any changes that you make directly on a Node. 
+>
+{.box .warning}
+
+From the top nav, select **Explore** to view more details on a particular Edge Node. On the **Node to explore** drop-down, select one of your hosts to display the following tabs: 
+- [Processes](#processes)
+- [Containers](#containers)
+- [Files](#files)
+- [System State](#host-metadata)
+
+![Explore an Edge Node](ed-edge-explore.c3fd2579a4.png)
+{border="true"}
+
+Let's explore each tab.  
+
+### Processes {#processes}
+
+The **Processes** tab lists all the processes running on the Edge Node. Click on any of the rows to display a modal with basic information on the process, including CPU, Memory, and IO graphs. 
+
+In this modal, click **All details** to get a table view of processes' information out of `/proc`. This information would normally require SSH'ing to the machine; this view makes troubleshooting across multiple systems much easier.
+
+![View Processes](ed-system-processes.ed5f92e034.png)
+{border="true"}
+
+Click any row to open the **Processes** tab and view active listening ports. The **Processes** tab displays a table of all active **Listening**, **Inbound**, and **Outbound** connections. 
+
+![Active listening ports](ed-processes-listening-ports.ace7cfec2a.png)
+{border="true"}
+
+### Containers {#containers} 
+
+The **Containers** tab lists all the running containers and container metrics including information about images, volumes, status, ports, etc. 
+
+> Cribl Edge supports both Docker and `containerd` runtimes. 
+>
+{.box .info}
+
+`containerd` containers have less info than Docker containers, so `Ports`, `IPs`, and `Logs` won't populate. 
+
+![Containers overview](ed-containers-overview.4ff1956a03.png)
+{border="true"}
+
+Click any container to view more details:  
+
+![Container details](ed-containers-details.f20e28cb8f.png)
+{border="true"}
+
+Click the **Logs** tab to view container logs. Optionally, use the search bar to filter displayed logs by arbitrary strings. 
+
+![View Docker Container logs](ed-containers-details2.704567cea9.png)
+{border="true"}
+
+The screenshot below shows `containerd` details, which don't include charts or logs. 
+
+![View containerd logs](ed-containers-details3.4a4582b21b.png)
+{border="true"}
+
+### Files {#files}
+
+The **Files** tab lists all the log files being actively written to by running applications that Cribl Edge has auto-discovered. You can also specify a list of directories and files to actively monitor.
+
+![Explore files](ed-explore-files.5cab384d80.png)
+{border="true"}
+
+The **Files** tab provides the following options.
+
+#### File Discovery Modes 
+
+Click a button at the top to select a discovery mode:
+ - **Auto**: Tells Cribl Edge to automatically discover files that are open for writing on currently running processes.
+ - **Manual**: Tells Cribl Edge to discover the files within the **Path** (directory) and **Allowlist** that you specify, down to the **Max depth**. 
+ - **Browse**: Displays a tree view of all of your directories and files. 
+
+![Manual discovery mode](ed-specify-file-list.4428d573b1.png)
+{scale="75%" border="true"}
+
+#### Path 
+  
+The **Path** field tells Cribl Edge to discover the files within the path (a directory) that you specify, down to the **Max depth**. 
+
+#### Allowlist
+
+The **Allowlist** field, available with Auto and Manual discovery, supports wildcard syntax, and supports the exclamation mark (`!`) for negation. For example, you can use `!*cribl*access.log` to prevent Cribl Edge from discovering its own access log. The default filters are `*/log/*` and `*log`. 
+
+Click any file to see a representation of the lines it contains. To restrict how much data is displayed, you can use the search field or time picker on the **Search** tab. 
+
+![Search tab](ed-search-file.20e739d118.png)
+{border="true"}
+
+If the representation of events shown on the **Search** tab isn't ideally suited to the file's content, you can use the **Event Breakers** tab to [change it](#exploring-files).
+
+![Event Breakers tab](ed-file-details.22d395eae1.png)
+{border="true"}
+
+Click **Monitor this file** to display the [File Monitor's](#monitor) configuration modal. 
+
+The **Inspect File** tab shows file metadata, including details like permissions, file size, user, and modified date. If the file appears suspicious, click **VirusTotal** or **OpSwat** at the bottom of the modal to see if the file is flagged as compromised. 
+
+![Inspect File tab](ed-file-inspect.eccf97c3ab.png)
+{border="true"}
+
+#### Monitor Files
+
+The **Monitor Files** button, available with Auto and Manual discovery, opens a **New File Monitor** modal prefilled with the discovery mode and anything else you specified on the **Files** tab, such as allowlist entries, path, or max depth.
+
+#### Max Depth
+
+The **Max depth** field, available with Manual discovery, is empty by default. Cribl Edge will search subdirectories, and their subdirectories, downward without limit. 
+
+If you enter `0`, Cribl Edge will discover only the top-level files within the specified path. If you specify `1`, Cribl Edge will discover files one level down from the top. Follow this pattern to specify the depth you want.
+
+#### Monitor {#monitor}
+
+Click a file's **Monitor** button to configure your [**File Monitor**](sources-file-monitor) Source to generate events from the file's lines or records. 
+
+![New File Monitor modal](ed-file-monitor-discover.2dcccc616b.png)
+{border="true"}
+
+The **Monitor** feature automatically prepopulates the modal with the following settings configured on the **Files** tab:
+- **Discovery mode**
+- **Search path**
+- **Max depth**
+- **Filename allowlist**
+
+In addition, the **Connected Destinations** section defaults to **QuickConnect**. In the **Connected Destinations** section, you can select a Pipeline or Pack and a Destination. Otherwise, when you save, you'll be routed to the **Collect** page to set up your connections via QuickConnect.
+ 
+
+![Collect page](ed-file-monitor-quickconnect.5e536e7e78.png)
+{border="true"}
+
+For further details, see [File Monitor](sources-file-monitor) and [QuickConnect](quickconnect).  
+
+#### Exploring Files with Event Breakers {#exploring-files}
+
+When you click a file in the **Files** tab, and Cribl Edge shows a representation of the lines that the file contains, how does that work? What's happening is that Cribl Edge is applying a default Event Breaker to the file.
+
+You are not limited to the default Event Breaker, though. Select the **Event Breakers** tab, then:
+
+* To apply a different (existing) Event Breaker, click **Add ruleset**, then select the desired ruleset from the **Event Breaker rulesets** drop-down.
+
+* To create a new ruleset, click **Create New** to open the **New Ruleset** modal. Proceed as described [here](event-breakers#add). Later, you can persist the new Event Breaker as part of a Source or a Collector. While you create the new ruleset, Cribl Edge pulls the contents of the open file into the Sample File area. Toggle between the **In** and **Out** tabs to compare, respectively, the original content, and the content as modified by the Event Breaker you're creating. 
+
+Now return to the **Search** tab – the contents of your chosen file will appear with the new Event Breaker applied.
+
+### System State {#host-metadata}
+
+The **System State** upper tab provides access to these left tabs:
+
+- [Host Info](#host-info)
+- [Disks](#disks)
+- [DNS](#dns)
+- [File Systems](#filesystems)
+- [Groups](#groups)
+- [Hosts File](#hosts-file)
+- [Interfaces](#interfaces)
+- [Routes](#host-routes)
+- [Users](#users)
+
+> To display any of the tabs above, you need to configure and enable the [System State Source](sources-system-state). Also, make sure that the Source's [Collector Settings](sources-system-state#collectorsettings) fields are enabled. 
+>
+{.box .info}
+
+#### Host Info {#host-info}
+
+Cribl Edge can add a `__metadata` property to every event emitted from every enabled Source. The **System State** tab displays the metadata collected for each Edge Node under **Host Info**. 
+
+![Host info/metadata collected](ed-host-info.06ac1cff87.png)
+
+The metadata surfaced by an Edge Node can be used to:
+- Enrich events (with an internal `__metadata` field).
+- Display to users as a part of instance exploration.
+
+You can customize the type of metadata collected at **Fleet Settings** > **Limits** > **Metadata**. Use the **Event metadata sources** drop-down (and/or the **Add source** button) to add and select metadata sources.
+
+> In Edge mode, all the **Event metadata sources** are enabled by default.
+>
+{.box .success}
+
+![Set limits](ed-settings-limits.476db83cde.png)
+{border="true"}
+
+The metadata sources that you can select here include:
+- `os`: Reports details for the host OS and host machine, like OS version, kernel version, CPU and memory resources, hostname, network addresses, etc.
+- `cribl`: Reports the Cribl Edge version, mode, Fleet for managed instances, and config version.
+- `aws`: Reports details for an EC2 instance, including the instance type, hostname, network addresses, tags, and IAM roles. For security reasons, we report only IAM role names.
+- `env`: Reports environment variables.
+- `kube`: Reports details on a Kubernetes environment, including the node, Pod, and container. For details, see [__metadata.kube Property](#kube).
+
+When these metadata sources are enabled (and can get data), Cribl Edge will add the corresponding property to events, with a nested property for each enabled source.
+
+> Some metadata sources work only in configured environments. For example, the `aws` source is available only when running on an AWS EC2 instance.
+> 
+> If your security tools report denied outbound traffic to IP addresses like `169.254.169.168` or `169.254.169.254`, you can suppress these by removing `aws` from the metadata sources described above. If you have a proxy setup, Cribl recommends adding these IP addresses to your `no_proxy` environment variable.
+>
+{.box .info}
+
+#### Disks {#disks}
+
+The **Disks** tab displays the inventory of physical disks and their partitions on the host system.
+
+![Disks tab](ed-hosts-diskslinux.d7de4eede4.png)
+{border="true"}
+
+
+#### DNS {#dns}
+
+The **DNS** tab lists the host system's DNS resolvers and search entries.
+
+![DNS tab](ed-hosts-dns.ed5a9c45de.png)
+{border="true"}
+
+
+#### File Systems {#filesystems}
+
+The **File Systems** tab displays an inventory of the mounted file systems on the host system.
+
+![File Systems tab](ed-file-systems.6cef473cd1.png)
+{border="true"}
+
+
+
+#### Groups {#groups}
+
+The **Groups** tab displays a list of the local groups including their names, descriptions, and members on the host system.
+
+![Groups tab](ed-hosts-groups.01b1c8ebdc.png)
+{border="true"}
+
+
+#### Hosts File {#hosts-file}
+
+The **Hosts File** tab displays the host system's current state.
+
+![Hosts File tab](ed-host-file.81613eeaf0.png)
+{border="true"}
+
+
+
+#### Interfaces {#interfaces}
+
+The **Interfaces** tab displays a list of each of the network interfaces on the host system.
+
+![Interfaces tab](ed-hosts-interfaces.456ca2c15d.png)
+{border="true"}
+
+
+#### Routes {#host-routes}
+
+The **Routes** tab displays entries from the network routes on the host system.
+
+![Hosts Routes tab](ed-routes-tab.3349ed62d2.png)
+{border="true"}
+
+
+#### Users {#users}
+
+The **Users** tab displays a list of local users on the host system.
+
+![Users tab](ed-hosts-users.dab15912fb.png)
+{border="true"}
+
+#### `__metadata.kube` Property {#kube}
+
+For the  `__metadata.kube` property (`kube` in the UI) to report details on a Kubernetes environment, Cribl Edge needs to figure out where it is running. Set the `KUBE_K8S_POD` environment variable to the name of the Pod in which Cribl Edge is running. At this point, the `__metadata.kube` property will have information to report on the `node` and `pod` properties. 
+  
+If the `/proc/self/cgroup`is working, then the `container` property information will be available, too. 
+  
+>   If you leave the `KUBE_K8S_POD` environment variable unset, and `/proc/self/cgroup` is not working, then Cribl Edge will not know what Pod it is running in. This state has multiple implications:
+>   - The [Kubernetes Metrics Source](sources-kubernetes-metrics) will be unable to identify whether or not it is in a DaemonSet. The result will be redundant metrics from each node in the cluster.
+>   - The Kubernetes Metadata collector will not add the `__metadata.kube property`. 
+>  - The [Kubernetes Logs Source](sources-kubernetes-logs) will also duplicate data. Every node in the cluster will collect logs for every container in the cluster.
+>
+{.box .warning} 

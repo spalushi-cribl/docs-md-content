@@ -1,0 +1,117 @@
+# InfluxDB
+
+
+Cribl Stream supports sending data to [InfluxDB](https://www.influxdata.com/products/influxdb/) (versions 1.x and 2.0.x) and [InfluxDB Cloud](https://www.influxdata.com/products/influxdb-cloud/). 
+
+> Type: Streaming | TLS Support: Configurable | PQ Support: Yes 
+>
+{.box .info} 
+
+## Configuring Cribl Stream to Output to InfluxDB
+
+From the top nav, click **Manage**, then select a **Worker Group** to configure. Next, you have two options:
+
+To configure via the graphical [QuickConnect](quickconnect) UI, click Routing > QuickConnect (Stream) or Collect (Edge). Next, click **+ Add Destination** at right. From the resulting drawer's tiles, select **InfluxDB**. Next, click either **+ Add Destination** or (if displayed) **Select Existing**. The resulting drawer will provide the options below.
+
+ 
+Or, to configure via the [Routing](routes) UI, click **Data** > **Destinations** (Stream) or **More** > **Destinations** (Edge). From the resulting page's tiles or the **Destinations** left nav, select **InfluxDB**. Next, click **New Destination** to open a **New Destination** modal that provides the options below.
+
+### General Settings
+
+**Output ID**: Enter a unique name to identify this InfluxDB definition.
+
+**Write API URL**: The URL of an InfluxDB cluster to send events to:
+- v1 API: `http://localhost:8086/write`
+- v2 API: `http://localhost:8086/api/v2/write`
+
+**Use v2 API**: You can enable the [InfluxDB v2 API](https://docs.influxdata.com/influxdb/v2.1/reference/api/) with InfluxDB version 1.8 or later. This toggle defaults to `No`, which falls back to the v1 API and displays a **Database** field. If you toggle **Use v2 API** to `Yes`, Cribl Stream communicates using InfluxDB's v2 API, and instead displays these two fields:
+- **Bucket**: Enter the bucket to write to (required).
+- **Organization**: The Organization ID corresponding to the specified **Bucket** (required in this configuration, although InfluxDB v.1.8 will ignore it).
+
+**Database**: Name of the database on which to write data points. Displayed only for configurations that use the v1 API (required).
+
+### Optional Settings
+
+**Timestamp precision**: Sets the precision for the supplied UNIX time values. Defaults to `Milliseconds`.
+
+**Dynamic value fields**: When enabled, Cribl Stream will pull the value field from the metric name. (E.g., `db.query.user` will use `db.query` as the measurement and `user` as the value field). Defaults to `Yes`.
+
+**Value field name**: Name of the field in which to store the metric when sending to InfluxDB. This will be used as a fallback if dynamic name generation is enabled but fails. Defaults to `value`.
+
+**Backpressure behavior**: Select whether to block, drop, or queue events when all receivers are exerting backpressure. (Causes might include a broken or denied connection, or a rate limiter.) Defaults to `Block`.
+
+**Tags**: Optionally, add tags that you can use for filtering and grouping at the final destination. Use a tab or hard return between (arbitrary) tag names.
+
+### Authentication  {#authentication-settings}
+
+Use the **Authentication type** drop-down to select one of these options:
+
+**None**: This default setting does not use authentication.
+
+**Auth token**: Use HTTP token authentication. In the resulting **Token** field, enter the bearer token that must be included in the HTTP authorization header.
+
+**Auth token (text secret)**: This option exposes a **Token (text secret)** drop-down, in which you can select a [stored text secret](/stream/securing-and-monitoring#secrets) that references the bearer token described above. A **Create** link is available to store a new, reusable secret.
+
+**Basic**: Displays **Username** and **Password** fields for you to enter HTTP Basic authentication credentials.
+
+**Basic (credentials secret)**: This option exposes a **Credentials secret** drop-down, in which you can select a [stored text secret](/stream/securing-and-monitoring#secrets) that references the Basic authentication credentials described above. A **Create** link is available to store a new, reusable secret.
+
+### Persistent Queue Settings
+
+> This tab is displayed when the **Backpressure behavior** is set to **Persistent Queue**. 
+> 
+> On Cribl-managed [Cribl.Cloud](deploy-cloud) Workers (with an [Enterprise plan](deploy-cloud#enterprise)), this tab exposes only the **Clear Persistent Queue** button. A maximum queue size of 1 GB disk space is automatically allocated per Worker Process.
+>
+{.box .info}
+
+**Max file size**: The maximum data volume to store in each queue file before closing it. Enter a numeral with units of KB, MB, etc. Defaults to `1 MB`.
+
+**Max queue size**: The maximum amount of disk space the queue is allowed to consume. Once this limit is reached, Cribl Stream stops queueing and applies the fallback **Queue‑full behavior**. Enter a numeral with units of KB, MB, etc.
+
+**Queue file path**: The location for the persistent queue files. Defaults to `$CRIBL_HOME/state/queues`. To this value, Cribl Stream will append `/<worker‑id>/<output‑id>`.
+
+
+**Compression**: Codec to use to compress the persisted data, once a file is closed. Defaults to `None`; `Gzip` is also available.
+
+**Queue-full behavior**: Whether to block or drop events when the queue is exerting backpressure (because disk is low or at full capacity). **Block** is the same behavior as non-PQ blocking, corresponding to the **Block** option on the **Backpressure behavior** drop-down. **Drop new data** throws away incoming data, while leaving the contents of the PQ unchanged.
+
+**Clear persistent queue**: Click this button if you want to flush out files that are currently queued for delivery to this Destination. A confirmation modal will appear. (Appears only after **Output ID** has been defined.)
+
+### Processing Settings
+
+#### Post‑Processing
+
+**Pipeline**: Pipeline to process data before sending the data out using this output.
+
+**System fields**: A list of fields to automatically add to events that use this output. By default, includes `cribl_pipe` (identifying the Cribl Stream Pipeline that processed the event). Supports wildcards. Other options include:
+
+- `cribl_host` – Cribl Stream Node that processed the event.
+- `cribl_wp` – Cribl Stream Worker Process that processed the event.
+- `cribl_input` – Cribl Stream Source that processed the event.
+- `cribl_output` – Cribl Stream Destination that processed the event.
+
+### Advanced Settings
+
+**Validate server certs**: Toggle to `Yes` to reject certificates that are **not** authorized by a CA in the **CA certificate path**, nor by another trusted CA (e.g., the system's CA).
+
+**Round-robin DNS**: Toggle on to enable round-robin DNS lookup across multiple IP addresses, IPv4 and IPv6. When a DNS server resolves a Fully Qualified Domain Name (FQDN) to multiple IP addresses, Cribl Stream will sequentially use each address in the order they are returned by the DNS server for subsequent connection attempts.
+
+**Compress**: Toggle to `Yes` to compress the payload body before sending.
+
+**Request timeout**: Amount of time (in seconds) to wait for a request to complete before aborting it. Defaults to `30`.
+
+**Request concurrency**: Maximum number of concurrent requests before blocking. This is set per Worker Process. Defaults to `5`.
+
+**Max body size (KB)**: Maximum size of the request body before compression. Defaults to `4096` KB. The actual request body size might exceed the specified value because the Destination adds bytes when it writes to the downstream receiver. Cribl recommends that you experiment with the **Max body size** value until downstream receivers reliably accept all events.
+
+**Max events per request**: Maximum number of events to include in the request body. The `0` default allows unlimited events.
+
+**Flush period (sec)**: Maximum time between requests. Low values could cause the payload size to be smaller than its configured maximum. Defaults to `1`.
+
+**Extra HTTP headers**: Name-value pairs to pass as additional HTTP headers.
+
+**Failed request logging mode**: Use this drop-down to determine which data should be logged when a request fails. Select among `None` (the default), `Payload`, or `Payload + Headers`. With this last option, Cribl Stream will redact all headers, except non-sensitive headers that you declare below in **Safe headers**. 
+
+**Safe headers**: Add headers to declare them as safe to log in plaintext. (Sensitive headers such as `authorization` will always be redacted, even if listed here.) Use a tab or hard return to separate header names.
+
+**Environment**: If you're using GitOps, optionally use this field to specify a single Git branch on which to enable this configuration. If empty, the config will be enabled everywhere.

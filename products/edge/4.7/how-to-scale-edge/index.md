@@ -1,0 +1,111 @@
+# Planning Large-Scale Deployments of Cribl Edge
+
+Learn how to scale Cribl Edge deployments to support one Leader managing up to 250,000 Nodes. 
+
+---
+
+Our standard [Deployment Planning](deploy-planning) guide is a great place to
+start if you intend to deploy 10,000 or fewer Nodes in your Cribl Edge environment.
+
+In version 4.7 and newer, a Leader can support a maximum of 250,000 Edge Nodes
+when metrics are set to **Minimal** mode and 100,000 Edge Nodes with metrics set
+to **Basic**. To support this higher Node limit, we've made some changes to
+Cribl Edge.
+
+This guide covers: 
+
+- The specific Leader configuration we recommend for best performance.
+- The changes you can expect to see in the Cribl Edge UI.
+- Some areas where you might encounter slowness as we add more Node support.
+
+## Recommended Leader Configuration
+
+The base configuration detailed on [Cribl Stream Sizing and Scaling](/stream/scaling#vms)
+is a good starting point.
+
+From there, you can configure these settings on the Leader so it can manage up
+to 250,000 Edge Nodes:
+
+- Add 2GB of RAM for every 10,000 Edge Nodes.
+- Deploy one vCPU core for every 10,000 Edge Nodes.
+- For Cribl Edge to support up to 100,000 Nodes, you can [configure internal metrics](internal-metrics#edge-metrics-controls) to **Basic** in **Fleet Settings**.
+- For 250,000 Nodes, you must configure internal metrics to **Minimal** in **Fleet Settings**.
+    
+  >You should configure these metrics for every Fleet if your Edge Node count 
+  >is more than 10,000. See [Performance Considerations](deploy-planning#performance-considerations)
+  >for more information.
+  {.box .info}
+  
+- To spin up the right number of connection processes, add the number of Edge
+  Nodes you will deploy into the [**Edge Nodes Count**
+  field](deploy-planning#configure-edge-node-count).
+  This field crunches numbers in the background and automatically spins up the
+  correct number of Edge connection processes for you.
+- There is no change to the default values when pushing config bundles from the Leader.
+
+> [Cribl University](https://cribl.io/university/) offers a course titled [Cribl Edge
+> Architecture: Architecture & Sizing](https://university.cribl.io/#/online-courses/b8a0d47f-544c-49e2-b175-9253da90b2e8)
+> that provides additional best practices and guidance. To follow the direct course link, first
+> log into your Cribl University account. (To create an account, select the **Sign up** link.
+> You’ll need to click through a short **Terms & Conditions** presentation, with chill music,
+> before proceeding to courses – but Cribl’s training is always free of charge.) Once logged
+> in, check out other useful [Cribl Edge
+> courses](https://university.cribl.io/#/catalog/f397da65-f17d-4c43-b147-5fff8b8c5876).
+>
+{.box .success}
+
+## Recommended Fleet Configuration
+
+There are additional settings you'll need to configure for each Fleet you
+intend to create:
+
+- Add 1 vCPU per Fleet.
+- Add 2GB of RAM per Fleet.
+
+## Upgrading a Large Number of Edge Nodes
+
+The [upgrading framework](upgrading-ui) allows Edge Nodes to pull down upgrade
+packages from the Leader asynchronously, rather than the Leader pushing packages
+to Nodes all at one time. Nodes communicate to the Leader every 60 seconds via a
+heartbeat.
+
+Additionally, Nodes request upgrade packages from the Leader in batches of 500.
+This allows you to upgrade Nodes without overloading the Leader, even with a
+large number of Nodes. 
+
+>In our controlled test environment, we found that
+>upgrading can take 25-40 minutes. This is an expected time frame
+>to upgrade that number of Nodes.
+{.box .info}
+
+## User Interface Updates
+
+To support Fleets that contain a large number of Nodes, we've made some UI
+changes. This section will highlight the key changes and limitations.
+
+### Searching for Nodes in the Explore Tab
+
+The [**Node to explore**](explore-edge#explore-tab) field returns only the first
+100 matching Nodes. When you start typing, the results match the search query
+and are sorted alphabetically by hostname.
+
+### Previewing Node Mappings
+
+When you’re previewing Node mappings from the **Manage** menu, **Mappings**
+submenu, the menu only displays the first 10,000 Mappings.
+
+## Current Limitations
+
+We’re continuing to address places where we’ve noticed an altered UI experience.
+This is what we’ve identified so far:
+
+- **Logs**: The drop-down where you can select an Edge Node will display a
+  maximum of 100 Nodes. 
+- **Map view**: To optimize performance, this page no longer relies on the
+  Leader's metrics store. We've removed the **Chart** and **During** fields as a result.
+- **Import Edge Data**: The **Import Edge Data** window in Cribl Stream returns a
+  maximum of 100 Edge Nodes. 
+- **Test tab**: The **Test** tab on Destinations displays a maximum of 100 results. 
+- **KMS Status report**: In **Fleet Settings**, the **KMS Status report** (under
+  **Security**) does not display all Nodes. Instead, search for your desired
+  Node.

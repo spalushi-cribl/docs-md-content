@@ -1,0 +1,22 @@
+{
+  "totalFiles": 12562,
+  "totalSize": 142961584,
+  "byDirectory": {
+    "README.md": {
+      "count": 1,
+      "size": 2015
+    },
+    "products": {
+      "count": 12360,
+      "size": 128092902
+    },
+    "other": {
+      "count": 68,
+      "size": 373188
+    },
+    "api-reference": {
+      "count": 133,
+      "size": 14493479
+    }
+  }
+}
